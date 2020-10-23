@@ -35,6 +35,11 @@
 			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-owl-spark_${scala.binary.version}</artifactId>
 		</dependency>
+		<!-- SANSA QUERY -->
+		<dependency>
+			<groupId>net.sansa-stack</groupId>
+			<artifactId>sansa-query-spark_${scala.binary.version}</artifactId>
+		</dependency>
 
 		<!-- Scala -->
 		<dependency>

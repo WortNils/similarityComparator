@@ -52,6 +52,13 @@
 				<version>${project.version}</version>
 			</dependency>
 
+			<!-- SANSA QUERY -->
+			<dependency>
+				<groupId>net.sansa-stack</groupId>
+				<artifactId>sansa-query-spark_${scala.binary.version}</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
 		</dependencies>
 	</dependencyManagement>
 </project>
