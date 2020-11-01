@@ -40,6 +40,21 @@
 			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-query-spark_${scala.binary.version}</artifactId>
 		</dependency>
+		<!-- SANSA Querying -->
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>sansa-query-spark_${scala.binary.version}</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.logging.log4j</groupId>
+					<artifactId>log4j-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.logback</groupId>
+					<artifactId>logback-classic</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 		<!-- Scala -->
 		<dependency>
