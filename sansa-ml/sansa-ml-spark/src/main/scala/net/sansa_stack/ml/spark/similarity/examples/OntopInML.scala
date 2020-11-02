@@ -9,6 +9,7 @@ import net.sansa_stack.query.spark.query.OntopSPARQLExecutor
 import net.sansa_stack.rdf.common.partition.core.RdfPartitionerComplex
 import net.sansa_stack.rdf.spark.io._
 import net.sansa_stack.rdf.spark.partition.core.RdfPartitionUtilsSpark
+import org.apache.jena.graph
 import org.apache.jena.graph.Node
 import org.apache.jena.query.{Query, QueryFactory, ResultSet}
 import org.apache.jena.rdf.model.ModelFactory
@@ -39,25 +40,31 @@ object OntopInML {
 
     val sparqlQuery = "SELECT * WHERE {?s ?p ?o} LIMIT 10"
 
-    val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/rdf.nt"
+    val input = "./sansa-ml/sansa-ml-spark/src/main/resources/rdf.nt"
+
+    val input1 = "/Users/carstendraschner/sciebo-research/PLATOON/ENGIE-UBO-accident-use-case/TeamsData/TTL_files_of_CSV/Traffic_Accident_Injury_Database_2018/caracteristiques_2018_out_1.ttl"
+    val sparqlQuery1 = """SELECT DISTINCT ?accidentId ?long ?lat ?datetime ?weatherCondition ?lightingCondition ?colisionCondition
+                         |WHERE {
+                         |
+                         |?accidentId <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.engie.fr/ontologies/accidentontology/RoadAccident> .
+                         |
+                         |?accidentId <https://w3id.org/seas/location> ?location .
+                         |?location <http://www.w3.org/2003/01/geo/wgs84_pos#point> ?point .
+                         |?point <http://www.w3.org/2003/01/geo/wgs84_pos#long> ?long .
+                         |?point <http://www.w3.org/2003/01/geo/wgs84_pos#lat> ?lat .
+                         |
+                         |?accidentId <https://w3id.org/seas/hasTemporalContext> ?tempInfo .
+                         |?tempInfo <http://www.w3.org/2006/time#inXSDDateTime> ?datetime .
+                         |
+                         |?accidentId <http://www.engie.fr/ontologies/accidentontology/hasEnvironmentDescription> ?environmentDescription .
+                         |?environmentDescription <http://www.engie.fr/ontologies/accidentontology/colisionCondition> ?colisionCondition .
+                         |?environmentDescription <http://www.engie.fr/ontologies/accidentontology/weatherCondition> ?weatherCondition .
+                         |?environmentDescription <http://www.engie.fr/ontologies/accidentontology/lightingCondition> ?lightingCondition .
+                         |}""".stripMargin
 
     // load an RDD of triples (from an N-Triples file here)
-    val data = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
-
-
-    /* val query = QueryFactory.create(sparqlQuery)
-
-    val sparqlExecutor = new OntopSPARQLExecutor(data)
-
-    val result: Array[Binding] = sparqlExecutor.sparqlRDD(sparqlQuery).collect()
-
-    val rs: ResultSet = resultSetFromBindings(query, result)
-
-    rs.
-
-     */
-
-
+    val data: RDD[graph.Triple] = spark.rdf(Lang.TURTLE)(input).cache()
+    // data.foreach(print(_))
 
     // apply vertical partitioning which is necessary for the current Ontop integration
     val partitions = RdfPartitionUtilsSpark.partitionGraph(data, partitioner = RdfPartitionerComplex(false))
