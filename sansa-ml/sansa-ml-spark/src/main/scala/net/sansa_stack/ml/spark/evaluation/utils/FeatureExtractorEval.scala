@@ -1,5 +1,6 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
+import scala.collection.mutable.ArrayBuffer
 import org.apache.jena.graph.{Node, Triple}
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.feature.Tokenizer
@@ -11,21 +12,20 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
 
 /**
- * This class creates from a dataset of features for Similarity Models
+ * This class creates from a dataset of triples features for Similarity Models
  */
 class FeatureExtractorEval extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("res")
+  private var _uris = ArrayBuffer[String]()
   private var _mode: String = "res"
   private var _depth: Int = 1
-  private var _uriA: String = ""
-  private var _uriB: String = ""
   private var _outputCol: String = "extractedFeatures"
 
   /**
    * This method changes the features to be extracted
    * @param mode a string specifying the mode. Modes are abbreviations of their corresponding models
-   * @return returns a dataframe with two columns one for the string of a respective URI and one for the feature vector
+   * @return returns the FeatureExtractor
    */
   def setMode(mode: String): this.type = {
     if (_availableModes.contains(mode)) {
@@ -37,6 +37,11 @@ class FeatureExtractorEval extends Transformer{
     }
   }
 
+  /**
+   * This method sets the depth parameter for the parentFinder
+   * @param depth an integer specifying the depth to which parents are searched. Default value 1.
+   * @return returns the FeatureExtractor
+   */
   def setDepth(depth: Int): this.type = {
     if (depth > 1) {
       _depth = depth
@@ -47,12 +52,27 @@ class FeatureExtractorEval extends Transformer{
     }
   }
 
-  def setUris(uriA: String, uriB: String): this.type = {
-    // TODO: fix definition
-    _uriA = uriA
-    _uriB = uriB
+  /**
+   * This method accepts an array of uris for which the feature extraction is taking place.
+   * @param uris an array if uris for feature extraction
+   * @return returns the FeatureExtractor
+   */
+  def setUris(uris: Array[String]): this.type = {
+    if (uris.length > 0) {
+      _uris += uris
+      this
+    }
+    else {
+      throw new Exception("Uri Array has to have at least one URI")
+    }
   }
 
+  /**
+   * private method for depth-search of parent nodes
+   * @param parents DataFrame of depth 1 parents
+   * @param data full scope DataFrame
+   * @return returns a DataFrame of all parents up to _depth
+   */
   private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
     val search: DataFrame = parents
     for (var i <- 0 to (_depth - 1)) {
@@ -65,6 +85,11 @@ class FeatureExtractorEval extends Transformer{
     }
   }
 
+  /**
+   * Takes read in dataframe and produces a dataframe with features
+    * @param dataset a dataframe read in over sansa rdf layer
+   * @return a dataframe with two columns, one for string of URI and one of a list of features
+   */
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
@@ -75,16 +100,12 @@ class FeatureExtractorEval extends Transformer{
         val extractedFeatures = featureExtractorModel
           .transform(dataset)
 
-        val initParentsA = extractedFeatures
-          .filter(t => t.getAs[String]("uri").equals(_uriA))
+        val initParents = extractedFeatures
+          .filter(t => t.getAs[String]("uri").equals(_uris))
 
-        val initParentsB = extractedFeatures
-          .filter(t => t.getAs[String]("uri").equals(_uriB))
+        // TODO: rewrite to function for each element in _uris
 
-        val parentsA = findParents(initParentsA, extractedFeatures)
-        val parentsB = findParents(initParentsB, extractedFeatures)
-
-        val common = parentsA.intersect(parentsB)
+        val parents = findParents(initParents, extractedFeatures)
       case "ic" =>
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("an")
@@ -95,14 +116,14 @@ class FeatureExtractorEval extends Transformer{
         val triples = extractedFeatures.count()
         val entityTriples = extractedFeatures
           .filter(t => t.getAs[String]("uri").equals(_uriA)).count()
-        (entityTriples/triples)
+        (_uriA, entityTriples/triples)
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
 
-    val tmpDs = unfoldedFeatures
+    /*val tmpDs = unfoldedFeatures
       .filter(!_._1.contains("\""))
       .groupBy("_1")
       .agg(collect_list("_2"))
@@ -111,8 +132,6 @@ class FeatureExtractorEval extends Transformer{
       .withColumnRenamed("_1", "uri")
       .withColumnRenamed("collect_list(_2)", _outputCol)*/
   }
-
-
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
 
