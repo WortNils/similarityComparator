@@ -8,14 +8,18 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.collect_list
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
 
 /**
  * This class creates from a dataset of features for Similarity Models
  */
 class FeatureExtractorEval extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("Res")
-  private var _mode: String = "Res"
+  private val _availableModes = Array("res")
+  private var _mode: String = "res"
+  private var _depth: Int = 1
+  private var _uriA: String = ""
+  private var _uriB: String = ""
   private var _outputCol: String = "extractedFeatures"
 
   /**
@@ -33,14 +37,65 @@ class FeatureExtractorEval extends Transformer{
     }
   }
 
+  def setDepth(depth: Int): this.type = {
+    if (depth > 1) {
+      _depth = depth
+      this
+    }
+    else {
+      throw new Exception("Depth must be at least 1.")
+    }
+  }
+
+  def setUris(uriA: String, uriB: String): this.type = {
+    // TODO: fix definition
+    _uriA = uriA
+    _uriB = uriB
+  }
+
+  private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
+    val search: DataFrame = parents
+    for (var i <- 0 to (_depth - 1)) {
+       while (!search.isEmpty) {
+        search.flatMap(t => Seq(
+          (t._2, t._1)
+        ))
+         // TODO: this is horrible, correct it
+       }
+    }
+  }
+
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
-    val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
-    val unfoldedFeatures: Dataset[(String, String)] = _mode match {
-      case "Res" => ds.flatMap(t => Seq(
-        (t._1, t._3),
-        (t._3, t._1)))
+    val unfoldedFeatures: Dataset[(String, _)] = _mode match {
+      case "par" =>
+        val featureExtractorModel = new FeatureExtractorModel()
+          .setMode("in")
+        val extractedFeatures = featureExtractorModel
+          .transform(dataset)
+
+        val initParentsA = extractedFeatures
+          .filter(t => t.getAs[String]("uri").equals(_uriA))
+
+        val initParentsB = extractedFeatures
+          .filter(t => t.getAs[String]("uri").equals(_uriB))
+
+        val parentsA = findParents(initParentsA, extractedFeatures)
+        val parentsB = findParents(initParentsB, extractedFeatures)
+
+        val common = parentsA.intersect(parentsB)
+      case "ic" =>
+        val featureExtractorModel = new FeatureExtractorModel()
+          .setMode("an")
+        val extractedFeatures = featureExtractorModel
+          .transform(dataset)
+
+        // TODO: find better way to filter for uris
+        val triples = extractedFeatures.count()
+        val entityTriples = extractedFeatures
+          .filter(t => t.getAs[String]("uri").equals(_uriA)).count()
+        (entityTriples/triples)
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
@@ -54,8 +109,10 @@ class FeatureExtractorEval extends Transformer{
 
     tmpDs
       .withColumnRenamed("_1", "uri")
-      .withColumnRenamed("collect_list(_2)", _outputCol)
+      .withColumnRenamed("collect_list(_2)", _outputCol)*/
   }
+
+
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
 
