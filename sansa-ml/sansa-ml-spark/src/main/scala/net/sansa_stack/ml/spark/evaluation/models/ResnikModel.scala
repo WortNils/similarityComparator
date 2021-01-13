@@ -12,12 +12,13 @@ import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.functions._
 
-class ResnikModel extends GenericSimilarityEstimatorModel {
+class ResnikModel extends SimilarityModel {
 
   protected val resnik = udf(a: DataFrame, b: DataFrame) => {
     val common: DataFrame = a.intersect(b)
-    val resnik = common.sort("informationContent", descending).first()
+    val resnik = common.sort(desc("informationContent")).first()
   }
 
   override val estimatorName: String = "ResnikSimilarityEstimator"

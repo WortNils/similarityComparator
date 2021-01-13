@@ -93,6 +93,7 @@ class FeatureExtractorEval extends Transformer{
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
+    // TODO: use map function
     val unfoldedFeatures: Dataset[(String, _)] = _mode match {
       case "par" =>
         val featureExtractorModel = new FeatureExtractorModel()
