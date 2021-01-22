@@ -4,8 +4,10 @@ import java.io.File
 import java.net.URI
 import java.nio.file.Paths
 
+import org.aksw.sparqlify.core.sql.common.serialization.SqlEscaperBacktick
+
 import net.sansa_stack.rdf.common.partition.core.{RdfPartitionStateDefault, RdfPartitioner, RdfPartitionerComplex}
-import net.sansa_stack.rdf.spark.partition.core.RdfPartitionUtilsSpark
+import net.sansa_stack.rdf.spark.partition.core.{BlankNodeStrategy, RdfPartitionUtilsSpark, SQLUtils, SparkTableGenerator}
 import org.apache.jena.sys.JenaSystem
 import org.apache.jena.vocabulary.RDF
 import org.apache.spark.rdd.RDD
@@ -14,6 +16,8 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession, SaveMode => TableSaveMode}
 import org.semanticweb.owlapi.apibinding.OWLManager
 import org.semanticweb.owlapi.model.{HasDataPropertiesInSignature, HasObjectPropertiesInSignature, IRI}
+
+import net.sansa_stack.rdf.common.partition.r2rml.R2rmlUtils
 
 
 /**
@@ -231,6 +235,7 @@ object VerticalPartitioner {
     // create the Spark tables
     println("creating Spark tables ...")
     SparkTableGenerator(spark,
+                        database = config.databaseName,
                         blankNodeStrategy = config.blankNodeStrategy,
                         useHive = false,
                         computeStatistics = config.computeStatistics)
@@ -262,6 +267,7 @@ object VerticalPartitioner {
     (sCnt, oCnt)
   }
 
+  val sqlEscaper = new SqlEscaperBacktick()
   private def createSparkTable(session: SparkSession,
                                partitioner: RdfPartitioner[RdfPartitionStateDefault],
                                p: RdfPartitionStateDefault,
@@ -272,7 +278,7 @@ object VerticalPartitioner {
                                path: String,
                                usePartitioning: Boolean,
                                partitioningThreshold: Int): Unit = {
-    val tableName = SQLUtils.escapeTablename(SQLUtils.createTableName(p, blankNodeStrategy), quoted = false)
+    val tableName = sqlEscaper.escapeTableName(R2rmlUtils.createDefaultTableName(p))
     // val scalaSchema = p.layout.schema
     val scalaSchema = partitioner.determineLayout(p).schema
     val sparkSchema = ScalaReflection.schemaFor(scalaSchema).dataType.asInstanceOf[StructType]
