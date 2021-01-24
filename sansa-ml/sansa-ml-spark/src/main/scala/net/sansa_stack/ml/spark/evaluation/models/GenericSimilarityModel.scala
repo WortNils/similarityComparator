@@ -14,7 +14,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 /**
  * This class generates similarity measures for a given array of uri pairs.
  */
-class SimilarityModel extends Transformer {
+class GenericSimilarityModel extends Transformer {
 
   // values that have to be overwritten
   protected var _similarityEstimationColumnName = "estimation"

@@ -13,12 +13,17 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
+import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 
-class ResnikModel extends SimilarityModel {
+class ResnikModel extends GenericSimilarityModel {
 
   protected val resnik = udf(a: DataFrame, b: DataFrame) => {
     val common: DataFrame = a.intersect(b)
     val resnik = common.sort(desc("informationContent")).first()
+  }
+
+  override def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
+
   }
 
   override val estimatorName: String = "ResnikSimilarityEstimator"
