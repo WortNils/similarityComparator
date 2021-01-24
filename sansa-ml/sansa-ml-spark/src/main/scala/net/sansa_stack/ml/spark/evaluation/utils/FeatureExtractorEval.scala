@@ -90,7 +90,7 @@ class FeatureExtractorEval extends Transformer{
     * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with two columns, one for string of URI and one of a list of features
    */
-  def transform(dataset: Dataset[_]): DataFrame = {
+  def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
 
     // TODO: use map function
@@ -101,12 +101,17 @@ class FeatureExtractorEval extends Transformer{
         val extractedFeatures = featureExtractorModel
           .transform(dataset)
 
+        // TODO: refine target column names
+        val uris = target.select("col1").union(target.select("row2")).
+
+        /*
+          uris.map()
         val initParents = extractedFeatures
-          .filter(t => t.getAs[String]("uri").equals(_uris))
+          .filter(t => t.getAs[String]("uri").equals(uris))
+        // TODO: rewrite to function for each element in _uris*/
 
-        // TODO: rewrite to function for each element in _uris
-
-        val parents = findParents(initParents, extractedFeatures)
+        // uris are considered parents of depth 0
+        val parents = findParents(uris, extractedFeatures)
       case "ic" =>
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("an")

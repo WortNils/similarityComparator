@@ -17,13 +17,22 @@ import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 
 class ResnikModel extends GenericSimilarityModel {
 
-  protected val resnik = udf(a: DataFrame, b: DataFrame) => {
-    val common: DataFrame = a.intersect(b)
-    val resnik = common.sort(desc("informationContent")).first()
-  }
-
   override def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
+    val featureExtractorModel = new FeatureExtractorEval()
+      .setMode("par")
+    val parents = featureExtractorModel
+      .transform(dataset, target)
 
+    map((row: (String, String, _)) =>
+      val a = parents.where("UriA" == "UriA").drop(col1, col2)
+      val b = parents.where("UriB" == "UriB").drop(col1, col2)
+      val common: DataFrame = a.intersect(b)
+
+      featureExtractorModel.setMode("ic")
+      val informationContent = featureExtractorModel
+      .transform(dataset, target)
+      val resnik = informationContent.sort(desc(columnName = informationContent)).first()
+    )
   }
 
   override val estimatorName: String = "ResnikSimilarityEstimator"
