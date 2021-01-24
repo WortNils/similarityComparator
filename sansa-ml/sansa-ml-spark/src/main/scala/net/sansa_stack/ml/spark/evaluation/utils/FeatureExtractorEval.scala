@@ -8,8 +8,10 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.collect_list
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
+import org.apache.spark.sql.Row
+
 
 /**
  * This class creates from a dataset of triples features for Similarity Models
@@ -17,7 +19,6 @@ import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
 class FeatureExtractorEval extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("res")
-  private var _uris = ArrayBuffer[String]()
   private var _mode: String = "res"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
@@ -53,34 +54,21 @@ class FeatureExtractorEval extends Transformer{
   }
 
   /**
-   * This method accepts an array of uris for which the feature extraction is taking place.
-   * @param uris an array if uris for feature extraction
-   * @return returns the FeatureExtractor
-   */
-  def setUris(uris: Array[String]): this.type = {
-    if (uris.length > 0) {
-      _uris += uris
-      this
-    }
-    else {
-      throw new Exception("Uri Array has to have at least one URI")
-    }
-  }
-
-  /**
    * private method for depth-search of parent nodes
-   * @param parents DataFrame of depth 1 parents
+   * @param parents DataFrame of depth 0 parents
    * @param data full scope DataFrame
    * @return returns a DataFrame of all parents up to _depth
    */
   private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
+    import spark.implicits._
     val search: DataFrame = parents
     for (var i <- 0 to (_depth - 1)) {
        while (!search.isEmpty) {
-        search.flatMap(t => Seq(
-          (t._2, t._1)
-        ))
-         // TODO: this is horrible, correct it
+         search.foreach{row =>
+           parents = parents.union(data.filter('_1 == row(0)))
+           search = search.filter('_1 != row(0))
+           // TODO: find out what is wrong with filter
+         }
        }
     }
   }
@@ -92,7 +80,6 @@ class FeatureExtractorEval extends Transformer{
    */
   def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
-
     // TODO: use map function
     val unfoldedFeatures: Dataset[(String, _)] = _mode match {
       case "par" =>
@@ -102,16 +89,10 @@ class FeatureExtractorEval extends Transformer{
           .transform(dataset)
 
         // TODO: refine target column names
-        val uris = target.select("col1").union(target.select("row2")).
-
-        /*
-          uris.map()
-        val initParents = extractedFeatures
-          .filter(t => t.getAs[String]("uri").equals(uris))
-        // TODO: rewrite to function for each element in _uris*/
+        val uris = target.select("col1").union(target.select("row2"))
 
         // uris are considered parents of depth 0
-        val parents = findParents(uris, extractedFeatures)
+        uris.flatMap{row => Seq(row(0), findParents(row.toDF, extractedFeatures).toString)}
       case "ic" =>
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("an")
@@ -120,23 +101,24 @@ class FeatureExtractorEval extends Transformer{
 
         // TODO: find better way to filter for uris
         val triples = extractedFeatures.count()
-        val entityTriples = extractedFeatures
-          .filter(t => t.getAs[String]("uri").equals(_uriA)).count()
-        (_uriA, entityTriples/triples)
+        target.flatMap{row =>
+          val entityTriples = extractedFeatures
+            .filter(t => t.getAs[String]("uri").equals(row(0))).count()
+          Seq = (row(0), entityTriples/triples)}
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
 
-    /*val tmpDs = unfoldedFeatures
+    val tmpDs = unfoldedFeatures
       .filter(!_._1.contains("\""))
       .groupBy("_1")
       .agg(collect_list("_2"))
 
     tmpDs
       .withColumnRenamed("_1", "uri")
-      .withColumnRenamed("collect_list(_2)", _outputCol)*/
+      .withColumnRenamed("collect_list(_2)", _outputCol)
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
