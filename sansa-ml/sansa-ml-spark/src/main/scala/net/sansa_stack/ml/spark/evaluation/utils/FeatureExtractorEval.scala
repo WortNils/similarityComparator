@@ -18,8 +18,8 @@ import org.apache.spark.sql.Row
  */
 class FeatureExtractorEval extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("res")
-  private var _mode: String = "res"
+  private val _availableModes = Array("par", "ic")
+  private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
@@ -80,7 +80,6 @@ class FeatureExtractorEval extends Transformer{
    */
   def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
-    // TODO: use map function
     val unfoldedFeatures: Dataset[(String, _)] = _mode match {
       case "par" =>
         val featureExtractorModel = new FeatureExtractorModel()
