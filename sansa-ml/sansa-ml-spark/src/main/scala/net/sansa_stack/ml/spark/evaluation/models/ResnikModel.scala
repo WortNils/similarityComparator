@@ -29,7 +29,7 @@ class ResnikModel extends GenericSimilarityModel {
     val parents = featureExtractorModel
       .transform(dataset, target)
 
-    map((row =>
+    target.map(row =>
       val a = parents.filter("uri" == row(0)).drop("uri").toDF
       val b = parents.filter("uri" == row(1)).drop("uri").toDF
       val common: DataFrame = a.intersect(b)
@@ -37,7 +37,7 @@ class ResnikModel extends GenericSimilarityModel {
       featureExtractorModel.setMode("ic")
       val informationContent = featureExtractorModel
       .transform(dataset, common)
-      val resnik = informationContent.sort(desc(columnName = "extractedFeatures")).first()
+      val resnik = informationContent.sort(desc(columnName = "extractedFeatures")).head()
     )
   }
 

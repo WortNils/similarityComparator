@@ -21,8 +21,10 @@ object Evaluation {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
 
-    // cause of jena NPE issue TODO ask Claus what is solution
+    // cause of jena NPE issue
     JenaSystem.init()
+
+    import spark.implicits._
 
     // define inputpath if it is not parameter
     val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
@@ -33,14 +35,16 @@ object Evaluation {
     triplesDf.show(false)
 
     // set input uris
+    val target: DataFrame = Seq(("<a1>", "<a2>"), ("<a2>", "<a1>")).toDF()
 
     // similarity measures
     val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
     for (var sim <- similarityMeasures) {
-      // sim.transform()
+      // sim.transform(triplesDF, target)
     }
 
     // show results
+    target.show()
 
   }
 }
