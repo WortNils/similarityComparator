@@ -3,7 +3,6 @@ package net.sansa_stack.ml.spark.evaluation.models
 import net.sansa_stack.ml.spark.similarity.similarityEstimationModels._
 import net.sansa_stack.ml.spark.utils.{FeatureExtractorModel, SimilarityExperimentMetaGraphFactory}
 import net.sansa_stack.rdf.spark.io._
-import net.sansa_stack.ml.spark.similarity.similarityEstimationModels.GenericSimilarityEstimatorModel
 import org.apache.jena.graph
 import org.apache.jena.riot.Lang
 import org.apache.jena.sys.JenaSystem
@@ -13,6 +12,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
+import net.sansa_stack.ml.spark.evaluation.models.GenericSimilarityModel
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.sql.Row
 
@@ -36,20 +36,21 @@ class ResnikModel extends GenericSimilarityModel {
 
     val frame = target.withColumn("Resnik", lit(0)).withColumn("ResnikTime", lit(0))
 
-    frame.map(row: Row =>
+    val t1 = System.nanoTime()
+    frame.map{row: Row =>
       val a = parents.filter("uri" == row(0)).drop("uri").toDF
       val b = parents.filter("uri" == row(1)).drop("uri").toDF
       val common: DataFrame = a.intersect(b)
 
       featureExtractorModel.setMode("ic")
       val informationContent = featureExtractorModel
-      .transform(dataset, common)
+        .transform(dataset, common)
       val resnik = informationContent.sort(desc(columnName = "extractedFeatures")).head()
-      val t1 = System.nanoTime()
-      val t_diff = t1-t0
+      val t2 = System.nanoTime()
+      val t_diff = t1 - t0 + t2 - t1
       row("Resnik") = resnik
       row("ResnikTime") = t_diff
       row
-    ).toDF
+    }().toDF
   }
 }

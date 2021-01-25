@@ -81,18 +81,20 @@ class FeatureExtractorEval extends Transformer{
   def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
     val unfoldedFeatures: Dataset[(String, _)] = _mode match {
-      case "par" =>
+      case "par" => {
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("in")
         val extractedFeatures = featureExtractorModel
           .transform(dataset)
 
         // TODO: refine target column names
-        val uris = target.select("col1").union(target.select("row2"))
+        val uris = target.select("col1").union(target.select("row2")).distinct()
 
         // uris are considered parents of depth 0
-        uris.flatMap{row => Seq(row(0), findParents(row.toDF, extractedFeatures).toString)}
-      case "ic" =>
+        uris.flatMap { row => Seq(row(0), findParents(row.toDF, extractedFeatures).toString) }
+        // map uri to each parent, then collect list at the end
+      }
+      case "ic" => {
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("an")
         val extractedFeatures = featureExtractorModel
@@ -100,10 +102,12 @@ class FeatureExtractorEval extends Transformer{
 
         // TODO: find better way to filter for uris
         val triples = extractedFeatures.count()
-        target.flatMap{row =>
+        target.flatMap({ row =>
           val entityTriples = extractedFeatures
             .filter(t => t.getAs[String]("uri").equals(row(0))).count()
-          Seq = (row(0), entityTriples/triples)}
+          Seq(row(0), entityTriples / triples)
+        })
+      }
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +

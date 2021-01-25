@@ -16,7 +16,7 @@ object Evaluation {
   def main(args: Array[String]): Unit = {
     // setup spark session
     val spark = SparkSession.builder
-      .appName(s"MinMal Semantic Similarity Estimation Calls")
+      .appName(s"Semantic Similarity Evaluator")
       .master("local[*]")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
@@ -35,16 +35,15 @@ object Evaluation {
     triplesDf.show(false)
 
     // set input uris
-    val target: DataFrame = Seq(("<a1>", "<a2>"), ("<a2>", "<a1>")).toDF()
+    val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
 
     // similarity measures
     val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
     for (var sim <- similarityMeasures) {
-      // sim.transform(triplesDF, target)
+      // target.join(sim.transform(triplesDF, target))
     }
 
     // show results
     target.show()
-
   }
 }
