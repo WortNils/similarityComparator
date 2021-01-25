@@ -23,6 +23,14 @@ class ResnikModel extends GenericSimilarityModel {
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
+  protected val resnik = udf( (a: List[String], b: List[String], informationContent: Map[String, Double]) => {
+    /*a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))).*/
+    // List of Strings
+    val inter: List[String] = a.intersect(b)
+    val cont: List[Double] = inter.map(informationContent(_))
+    val resnik: Double = cont.max
+  }
+
   override val estimatorName: String = "ResnikSimilarityEstimator"
   override val estimatorMeasureType: String = "similarity"
 
@@ -34,9 +42,15 @@ class ResnikModel extends GenericSimilarityModel {
     val parents = featureExtractorModel
       .transform(dataset, target)
 
-    val frame = target.withColumn("Resnik", lit(0)).withColumn("ResnikTime", lit(0))
+
 
     val t1 = System.nanoTime()
+
+
+
+    val frame = target.withColumn("Resnik", lit(0)).withColumn("ResnikTime", lit(0))
+
+
     frame.map{row: Row =>
       val a = parents.filter("uri" == row(0)).drop("uri").toDF
       val b = parents.filter("uri" == row(1)).drop("uri").toDF

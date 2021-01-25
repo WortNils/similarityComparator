@@ -6,7 +6,7 @@ import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.feature.Tokenizer
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.collect_list
+import org.apache.spark.sql.functions.{collect_list, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
@@ -16,7 +16,7 @@ import org.apache.spark.sql.Row
 /**
  * This class creates from a dataset of triples features for Similarity Models
  */
-class FeatureExtractorEval extends Transformer{
+class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("par", "ic")
   private var _mode: String = "par"
@@ -62,12 +62,27 @@ class FeatureExtractorEval extends Transformer{
   private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
     import spark.implicits._
     val search: DataFrame = parents
-    for (var i <- 0 to (_depth - 1)) {
+    data.explode()
+    for (i <- 1 to _depth) {
        while (!search.isEmpty) {
          search.foreach{row =>
-           parents = parents.union(data.filter('_1 == row(0)))
-           search = search.filter('_1 != row(0))
+           parents = parents.union(data.filter($"uri" == row(0)))
+           search = search.filter($"uri" != row(0))
            // TODO: find out what is wrong with filter
+           /* val parent = udf((row: Row) => {
+             val l = row.toSeq.toList
+             val firstElement = l(0)
+
+           })
+           // filter out cyclic paths from currentPaths
+           val noCycle = udf((row: Row) => {
+             val l = row.toSeq.toList
+               .filter(_!=None)
+               .filter(_!=null)
+             val lFromSet = l.toSet
+             l.length == lFromSet.size
+           })
+           val nNamedColumns = currentPaths.columns.filter(_.startsWith("n_")).toList */
          }
        }
     }
@@ -81,7 +96,7 @@ class FeatureExtractorEval extends Transformer{
   def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
     val unfoldedFeatures: Dataset[(String, _)] = _mode match {
-      case "par" => {
+      case "par" =>
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("in")
         val extractedFeatures = featureExtractorModel
@@ -93,21 +108,21 @@ class FeatureExtractorEval extends Transformer{
         // uris are considered parents of depth 0
         uris.flatMap { row => Seq(row(0), findParents(row.toDF, extractedFeatures).toString) }
         // map uri to each parent, then collect list at the end
-      }
-      case "ic" => {
+      case "ic" =>
         val featureExtractorModel = new FeatureExtractorModel()
           .setMode("an")
         val extractedFeatures = featureExtractorModel
           .transform(dataset)
 
         // TODO: find better way to filter for uris
-        val triples = extractedFeatures.count()
-        target.flatMap({ row =>
+        val overall: Double = extractedFeatures.count()
+
+        // do groupBy followed by count
+        /* target.flatMap({ row =>
           val entityTriples = extractedFeatures
             .filter(t => t.getAs[String]("uri").equals(row(0))).count()
-          Seq(row(0), entityTriples / triples)
+          Seq(row(0), entityTriples / triples) */
         })
-      }
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
