@@ -6,11 +6,12 @@ import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.feature.Tokenizer
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.{collect_list, udf}
+import org.apache.spark.sql.functions.{col, collect_list, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions
 
 
 /**
@@ -88,6 +89,14 @@ class FeatureExtractorEval extends Transformer {
     }
   }
 
+  protected val parent = udf( (start: String, data: Dataset[(String, String)]) => {
+
+  })
+
+  protected val divideBy = udf((value: Double, overall: Double) => {
+    value/overall
+  })
+
   /**
    * Takes read in dataframe and produces a dataframe with features
     * @param dataset a dataframe read in over sansa rdf layer
@@ -95,48 +104,34 @@ class FeatureExtractorEval extends Transformer {
    */
   def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     import spark.implicits._
-    val unfoldedFeatures: Dataset[(String, _)] = _mode match {
-      case "par" =>
-        val featureExtractorModel = new FeatureExtractorModel()
-          .setMode("in")
-        val extractedFeatures = featureExtractorModel
-          .transform(dataset)
 
-        // TODO: refine target column names
-        val uris = target.select("col1").union(target.select("row2")).distinct()
+    val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
 
-        // uris are considered parents of depth 0
-        uris.flatMap { row => Seq(row(0), findParents(row.toDF, extractedFeatures).toString) }
-        // map uri to each parent, then collect list at the end
-      case "ic" =>
-        val featureExtractorModel = new FeatureExtractorModel()
-          .setMode("an")
-        val extractedFeatures = featureExtractorModel
-          .transform(dataset)
-
-        // TODO: find better way to filter for uris
-        val overall: Double = extractedFeatures.count()
-
-        // do groupBy followed by count
-        /* target.flatMap({ row =>
-          val entityTriples = extractedFeatures
-            .filter(t => t.getAs[String]("uri").equals(row(0))).count()
-          Seq(row(0), entityTriples / triples) */
-        })
+    val rawFeatures: Dataset[(String, String)] = _mode match {
+      case "par" => ds.flatMap(t => Seq(
+        (t._3, t._1)))
+      case "ic" => ds.flatMap(t => Seq(
+        (t._1, t._3),
+        (t._3, t._1)))
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
-
-    val tmpDs = unfoldedFeatures
-      .filter(!_._1.contains("\""))
-      .groupBy("_1")
-      .agg(collect_list("_2"))
-
-    tmpDs
-      .withColumnRenamed("_1", "uri")
-      .withColumnRenamed("collect_list(_2)", _outputCol)
+    val returnDF: DataFrame = _mode match {
+      case "par" =>
+        target.withColumn("parents", parent(col("_1"), rawFeatures))
+      case "ic" =>
+        val overall: Double = rawFeatures.count()/2
+        // TODO: find out how to do a math operation on every item in column x
+        val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row(1), overall))
+        target.join(count, count("_1") == target("_1"), "left")
+        // target.withColumn("informationContent", )
+      case _ => throw new Exception(
+        "This mode is currently not supported .\n " +
+          "You selected mode " + _mode + " .\n " +
+          "Currently available modes are: " + _availableModes)
+    }
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
