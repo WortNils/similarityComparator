@@ -35,14 +35,23 @@ object Evaluation {
     triplesDf.show(false)
 
     // set input uris
-    val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
+    // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
+    val target: DataFrame = Seq("<m1>", "<m2>").toDF()
+    target.show()
+
+    val featureExtractorModel = new FeatureExtractorEval()
+      .setMode("ic")
+    val info = featureExtractorModel
+      .transform(triplesDf, target)
+
+    info.show()
 
     // similarity measures
-    val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
+    /* val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
     for (var sim <- similarityMeasures) {
-      // target.join(sim.transform(triplesDF, target))
+      // final = target.join(sim.transform(triplesDF, target))
     }
-
+    */
     // show results
     target.show()
   }
