@@ -60,14 +60,14 @@ class FeatureExtractorEval extends Transformer {
    * @param data full scope DataFrame
    * @return returns a DataFrame of all parents up to _depth
    */
-  private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
+  /* private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
     import spark.implicits._
     val search: DataFrame = parents
     data.explode()
     for (i <- 1 to _depth) {
        while (!search.isEmpty) {
          search.foreach{row =>
-           parents = parents.union(data.filter($"uri" == row(0)))
+           parents = parents.union(data.filter(data("uri") === row(0)))
            search = search.filter($"uri" != row(0))
            // TODO: find out what is wrong with filter
            /* val parent = udf((row: Row) => {
@@ -87,9 +87,9 @@ class FeatureExtractorEval extends Transformer {
          }
        }
     }
-  }
+  } */
 
-  protected val parent = udf( (start: String, data: Dataset[(String, String)]) => {
+  protected val parent = udf((start: String, data: Dataset[(String, String)]) => {
 
   })
 
@@ -124,9 +124,9 @@ class FeatureExtractorEval extends Transformer {
       case "ic" =>
         val overall: Double = rawFeatures.count()/2
         // TODO: find out how to do a math operation on every item in column x
-        val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row(1), overall))
-        target.join(count, count("_1") == target("_1"), "left")
-        // target.withColumn("informationContent", )
+         val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row(1), overall))
+         // val info = target.join(count, count("_1") == target("_1"), "left")
+         target.withColumn("informationContent", count("_1"))
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +

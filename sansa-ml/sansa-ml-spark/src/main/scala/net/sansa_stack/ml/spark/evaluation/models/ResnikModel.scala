@@ -14,9 +14,10 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import net.sansa_stack.ml.spark.evaluation.models.GenericSimilarityModel
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
+import org.apache.spark.ml.Transformer
 import org.apache.spark.sql.Row
 
-class ResnikModel extends GenericSimilarityModel {
+class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("res")
   private var _mode: String = "res"
@@ -24,22 +25,22 @@ class ResnikModel extends GenericSimilarityModel {
   private var _outputCol: String = "extractedFeatures"
 
   protected val resnik = udf( (a: List[String], b: List[String], informationContent: Map[String, Double]) => {
-    /*a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))).*/
+    /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
     // List of Strings
     val inter: List[String] = a.intersect(b)
     val cont: List[Double] = inter.map(informationContent(_))
     val resnik: Double = cont.max
-  }
+  })
 
-  override val estimatorName: String = "ResnikSimilarityEstimator"
-  override val estimatorMeasureType: String = "similarity"
+  val estimatorName: String = "ResnikSimilarityEstimator"
+  val estimatorMeasureType: String = "similarity"
 
   override def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     val t0 = System.nanoTime()
     import spark.implicits._
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("par").setDepth(_depth)
-    val parents = featureExtractorModel
+    val parents: DataFrame = featureExtractorModel
       .transform(dataset, target)
 
 
@@ -52,8 +53,8 @@ class ResnikModel extends GenericSimilarityModel {
 
 
     frame.map{row: Row =>
-      val a = parents.filter("uri" == row(0)).drop("uri").toDF
-      val b = parents.filter("uri" == row(1)).drop("uri").toDF
+      val a: DataFrame = parents.where(parents("uri") === row(0)).drop("uri").toDF
+      val b: DataFrame = parents.where(parents("uri") === row(1)).drop("uri").toDF
       val common: DataFrame = a.intersect(b)
 
       featureExtractorModel.setMode("ic")
@@ -62,9 +63,9 @@ class ResnikModel extends GenericSimilarityModel {
       val resnik = informationContent.sort(desc(columnName = "extractedFeatures")).head()
       val t2 = System.nanoTime()
       val t_diff = t1 - t0 + t2 - t1
-      row("Resnik") = resnik
-      row("ResnikTime") = t_diff
+      /* row("Resnik") = resnik
+      row("ResnikTime") = t_diff */
       row
-    }().toDF
+    }.toDF
   }
 }

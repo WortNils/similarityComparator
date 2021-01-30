@@ -14,8 +14,8 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 /**
  * This class generates similarity measures for a given array of uri pairs.
  */
-class GenericSimilarityModel extends Transformer {
-
+class GenericSimilarityModel {
+/*
   // values that have to be overwritten
   protected var _similarityEstimationColumnName = "estimation"
 
@@ -24,7 +24,7 @@ class GenericSimilarityModel extends Transformer {
   val modelType: String = "SimilarityEstimator"
 
   override def transform(dataset: Dataset[_], target: Array[(String, String)]): DataFrame = {
-
+    return dataset.toDF
   }
 
 
@@ -35,5 +35,5 @@ class GenericSimilarityModel extends Transformer {
   override def transformSchema(schema: StructType): StructType =
     throw new NotImplementedError()
 
-  override val uid: String = "Similarity"
+  override val uid: String = "Similarity" */
 }
