@@ -1,17 +1,10 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
-import scala.collection.mutable.ArrayBuffer
-import org.apache.jena.graph.{Node, Triple}
 import org.apache.spark.ml.Transformer
-import org.apache.spark.ml.feature.Tokenizer
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.{col, collect_list, udf}
+import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
-import net.sansa_stack.ml.spark.utils.FeatureExtractorModel
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.functions
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 
 /**
@@ -67,7 +60,7 @@ class FeatureExtractorEval extends Transformer {
     for (i <- 1 to _depth) {
        while (!search.isEmpty) {
          search.foreach{row =>
-           parents = parents.union(data.filter(data("uri") === row(0)))
+           parents = parents.union(data.filter(data("uri") === row(0))) p = p u {parents(search)}
            search = search.filter($"uri" != row(0))
            // TODO: find out what is wrong with filter
            /* val parent = udf((row: Row) => {
@@ -90,7 +83,15 @@ class FeatureExtractorEval extends Transformer {
   } */
 
   protected val parent = udf((start: String, data: Dataset[(String, String)]) => {
-
+    var parents = data.toDF()
+    var new_parents = parents.union(parents.join(parents, Seq("_2", "_1")))
+    for (i <- 1 to _depth) {
+      while (parents != new_parents) {
+        parents = new_parents
+        new_parents = parents.union(parents.join(parents, Seq("_2", "_1"))) // join data with itself. substitute
+      }
+    }
+    parents
   })
 
   protected val divideBy = udf((value: Double, overall: Double) => {
@@ -109,7 +110,7 @@ class FeatureExtractorEval extends Transformer {
 
     val rawFeatures: Dataset[(String, String)] = _mode match {
       case "par" => ds.flatMap(t => Seq(
-        (t._3, t._1)))
+        (t._1, t._3)))
       case "ic" => ds.flatMap(t => Seq(
         (t._1, t._3),
         (t._3, t._1)))
@@ -120,11 +121,12 @@ class FeatureExtractorEval extends Transformer {
     }
     val returnDF: DataFrame = _mode match {
       case "par" =>
+        // TODO: rewrite so the parents get added
         target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "ic" =>
         val overall: Double = rawFeatures.count()/2
         // TODO: find out how to do a math operation on every item in column x
-         val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row(1), overall))
+         val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row._1, overall))
          // val info = target.join(count, count("_1") == target("_1"), "left")
          target.withColumn("informationContent", count("_1"))
       case _ => throw new Exception(

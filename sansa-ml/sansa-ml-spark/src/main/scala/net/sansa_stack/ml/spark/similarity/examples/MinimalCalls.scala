@@ -29,6 +29,7 @@ object MinimalCalls {
     val spark = SparkSession.builder
       .appName(s"MinMal Semantic Similarity Estimation Calls")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .config("spark.master", "local")
       .getOrCreate()
 
     // cause of jena NPE issue TODO ask Claus what is solution
