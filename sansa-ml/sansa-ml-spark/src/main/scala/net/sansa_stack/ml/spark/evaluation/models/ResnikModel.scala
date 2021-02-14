@@ -16,6 +16,7 @@ import net.sansa_stack.ml.spark.evaluation.models.GenericSimilarityModel
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.expressions.UserDefinedFunction
 
 class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
@@ -24,12 +25,23 @@ class ResnikModel extends Transformer {
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
-  protected val resnik = udf( (a: List[String], b: List[String], informationContent: Map[String, Double]) => {
+  private var t_net: Double = 0.0
+
+  protected val resnik = udf((a: List[String], b: List[String], informationContent: Map[String, Double]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
-    // List of Strings
+    // Timekeeping
+    val t2 = System.nanoTime()
+
+    // main calculations
     val inter: List[String] = a.intersect(b)
     val cont: List[Double] = inter.map(informationContent(_))
-    val resnik: Double = cont.max
+
+    // Timekeeping
+    val t3 = System.nanoTime()
+    val t_diff = t_net + t3 - t2
+
+    // return value
+    (cont.max, t_diff)
   })
 
   val estimatorName: String = "ResnikSimilarityEstimator"
@@ -42,17 +54,10 @@ class ResnikModel extends Transformer {
       .setMode("par").setDepth(_depth)
     val parents: DataFrame = featureExtractorModel
       .transform(dataset, target)
-
-
-
     val t1 = System.nanoTime()
-
-
-
-    val frame = target.withColumn("Resnik", lit(0)).withColumn("ResnikTime", lit(0))
-
-
-    frame.map{row: Row =>
+    t_net = (t1 - t0)
+    val frame = target.withColumn("Resnik", resnik())
+    /* frame.map{row: Row =>
       val a: DataFrame = parents.where(parents("uri") === row(0)).drop("uri").toDF
       val b: DataFrame = parents.where(parents("uri") === row(1)).drop("uri").toDF
       val common: DataFrame = a.intersect(b)
@@ -66,6 +71,7 @@ class ResnikModel extends Transformer {
       /* row("Resnik") = resnik
       row("ResnikTime") = t_diff */
       row
-    }.toDF
+    }.toDF */
+
   }
 }

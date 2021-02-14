@@ -83,6 +83,7 @@ class FeatureExtractorEval extends Transformer {
   } */
 
   protected val parent = udf((start: String, data: Dataset[(String, String)]) => {
+    // TODO: redo with map maybe?
     var parents = data.toDF()
     var new_parents = parents.union(parents.join(parents, Seq("_2", "_1")))
     for (i <- 1 to _depth) {
