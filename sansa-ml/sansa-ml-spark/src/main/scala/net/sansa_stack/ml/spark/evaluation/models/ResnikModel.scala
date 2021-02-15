@@ -10,6 +10,7 @@ import scala.collection.Map
 
 class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
+  import spark.implicits._
   private val _availableModes = Array("res")
   private var _mode: String = "res"
   private var _depth: Int = 1
@@ -17,7 +18,7 @@ class ResnikModel extends Transformer {
 
   private var t_net: Double = 0.0
 
-  private var _target: DataFrame = Seq(0).toDF()
+  private var _target: DataFrame = Seq("0", "1").toDF()
 
   private var info: Map[String, Double] = Map("a" -> 2)
 
@@ -62,25 +63,12 @@ class ResnikModel extends Transformer {
       .setMode("par").setDepth(_depth)
     val parents: DataFrame = featureExtractorModel
       .transform(dataset)
-    val info: Map[String, Double] = featureExtractorModel.setMode("ic").transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
+
+    // maybe rewrite this for bigger data
+    val info: Map[String, Double] = featureExtractorModel.setMode("ic")
+      .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     val t1 = System.nanoTime()
     t_net = (t1 - t0)
-
-    /* frame.map{row: Row =>
-      val a: DataFrame = parents.where(parents("uri") === row(0)).drop("uri").toDF
-      val b: DataFrame = parents.where(parents("uri") === row(1)).drop("uri").toDF
-      val common: DataFrame = a.intersect(b)
-
-      featureExtractorModel.setMode("ic")
-      val informationContent = featureExtractorModel
-        .transform(dataset, common)
-      val resnik = informationContent.sort(desc(columnName = "extractedFeatures")).head()
-      val t2 = System.nanoTime()
-      val t_diff = t1 - t0 + t2 - t1
-      /* row("Resnik") = resnik
-      row("ResnikTime") = t_diff */
-      row
-    }.toDF */
 
     _target.withColumn("Resnik", resnik(col("FeaturesA"), col("FeaturesB")))
   }
