@@ -6,6 +6,7 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import scala.collection.Map
 
 class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
@@ -16,14 +17,18 @@ class ResnikModel extends Transformer {
 
   private var t_net: Double = 0.0
 
-  protected val resnik = udf((a: List[String], b: List[String], informationContent: Map[String, Double]) => {
+  private var _target: DataFrame = Seq(0).toDF()
+
+  private var info: Map[String, Double] = Map("a" -> 2)
+
+  protected val resnik = udf((a: List[String], b: List[String]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
     // Timekeeping
     val t2 = System.nanoTime()
 
     // main calculations
     val inter: List[String] = a.intersect(b)
-    val cont: List[Double] = inter.map(informationContent(_))
+    val cont: List[Double] = inter.map(info(_))
 
     // Timekeeping
     val t3 = System.nanoTime()
@@ -43,15 +48,21 @@ class ResnikModel extends Transformer {
     }
   }
 
+  def setTarget(target: DataFrame): this.type = {
+    _target = target
+    this
+  }
+
   val estimatorName: String = "ResnikSimilarityEstimator"
   val estimatorMeasureType: String = "similarity"
 
-  def transform (dataset: Dataset[_], target: DataFrame): DataFrame = {
+  def transform (dataset: Dataset[_]): DataFrame = {
     val t0 = System.nanoTime()
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("par").setDepth(_depth)
     val parents: DataFrame = featureExtractorModel
       .transform(dataset)
+    val info: Map[String, Double] = featureExtractorModel.setMode("ic").transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     val t1 = System.nanoTime()
     t_net = (t1 - t0)
 
@@ -71,7 +82,7 @@ class ResnikModel extends Transformer {
       row
     }.toDF */
 
-    target.withColumn("Resnik", resnik(col("FeaturesA"), col("FeaturesB")))
+    _target.withColumn("Resnik", resnik(col("FeaturesA"), col("FeaturesB")))
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
