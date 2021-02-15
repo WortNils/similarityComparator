@@ -40,7 +40,7 @@ object Evaluation {
     target.show()
 
     val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("ic")
+      .setMode("par")
     val info = featureExtractorModel
       .transform(triplesDf, target)
 
