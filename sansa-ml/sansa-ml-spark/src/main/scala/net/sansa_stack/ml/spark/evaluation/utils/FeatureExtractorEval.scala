@@ -131,7 +131,8 @@ class FeatureExtractorEval extends Transformer {
       case "ic" =>
         overall = rawFeatures.count()/2
         val count: DataFrame = rawFeatures.groupBy("_1").count()
-        val info: DataFrame = count.withColumn("InformationContent", divideBy(count("count")))
+        val info: DataFrame = count.withColumn("informationContent", divideBy(count("count")))
+          .drop("count").withColumnRenamed("_1", "entity")
         // val info = target.join(count, count("_1") == target("_1"), "left")
         info
       case _ => throw new Exception(
