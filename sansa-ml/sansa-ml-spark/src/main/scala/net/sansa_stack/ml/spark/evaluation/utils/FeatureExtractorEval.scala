@@ -17,6 +17,8 @@ class FeatureExtractorEval extends Transformer {
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
+  var overall: Double = 0
+
   /**
    * This method changes the features to be extracted
    * @param mode a string specifying the mode. Modes are abbreviations of their corresponding models
@@ -88,7 +90,7 @@ class FeatureExtractorEval extends Transformer {
 
   }) */
 
-  protected val divideBy = udf((value: Double, overall: Double) => {
+  protected val divideBy = udf((value: Double) => {
     value/overall
   })
 
@@ -124,13 +126,15 @@ class FeatureExtractorEval extends Transformer {
           }
         }
         parents
+        // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "ic" =>
-        val overall: Double = rawFeatures.count()/2
-        // TODO: find out how to do a math operation on every item in column x
-        val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row._2, overall))
-         // val info = target.join(count, count("_1") == target("_1"), "left")
-         target.withColumn("informationContent", count("_1"))
+        overall = rawFeatures.count()/2
+        val count: DataFrame = rawFeatures.groupBy("_1").count()
+        val info: DataFrame = count.withColumn("InformationContent", divideBy(count("count")))
+        info.show()
+        // val info = target.join(count, count("_1") == target("_1"), "left")
+        target.withColumn("informationContent", count("_1"))
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +

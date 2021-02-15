@@ -40,11 +40,15 @@ object Evaluation {
     target.show()
 
     val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("par")
+      .setMode("ic")
     val info = featureExtractorModel
       .transform(triplesDf, target)
 
     info.show()
+
+    val par = featureExtractorModel.setMode("par").transform(triplesDf, target)
+
+    par.show()
 
     // similarity measures
     /* val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
