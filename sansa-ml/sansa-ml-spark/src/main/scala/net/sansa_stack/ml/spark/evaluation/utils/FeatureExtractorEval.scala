@@ -99,7 +99,7 @@ class FeatureExtractorEval extends Transformer {
     * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with two columns, one for string of URI and one of a list of features
    */
-  def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
+  def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
     val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
@@ -132,14 +132,14 @@ class FeatureExtractorEval extends Transformer {
         overall = rawFeatures.count()/2
         val count: DataFrame = rawFeatures.groupBy("_1").count()
         val info: DataFrame = count.withColumn("InformationContent", divideBy(count("count")))
-        info.show()
         // val info = target.join(count, count("_1") == target("_1"), "left")
-        target.withColumn("informationContent", count("_1"))
+        info
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
+    returnDF
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)

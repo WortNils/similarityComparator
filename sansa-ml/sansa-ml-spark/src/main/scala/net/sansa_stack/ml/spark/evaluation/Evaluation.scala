@@ -1,6 +1,6 @@
 package net.sansa_stack.ml.spark.evaluation
 
-import net.sansa_stack.ml.spark.evaluation.models._
+// import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils._
 import net.sansa_stack.rdf.spark.io._
 import org.apache.jena.graph
@@ -42,11 +42,11 @@ object Evaluation {
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("ic")
     val info = featureExtractorModel
-      .transform(triplesDf, target)
+      .transform(triplesDf)
 
     info.show()
 
-    val par = featureExtractorModel.setMode("par").transform(triplesDf, target)
+    val par = featureExtractorModel.setMode("par").transform(triplesDf)
 
     par.show()
 

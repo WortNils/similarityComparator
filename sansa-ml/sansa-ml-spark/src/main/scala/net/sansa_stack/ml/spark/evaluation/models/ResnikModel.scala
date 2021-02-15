@@ -1,22 +1,11 @@
 package net.sansa_stack.ml.spark.evaluation.models
 
-import net.sansa_stack.ml.spark.similarity.similarityEstimationModels._
-import net.sansa_stack.ml.spark.utils.{FeatureExtractorModel, SimilarityExperimentMetaGraphFactory}
-import net.sansa_stack.rdf.spark.io._
-import org.apache.jena.graph
-import org.apache.jena.riot.Lang
-import org.apache.jena.sys.JenaSystem
-import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
-import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import org.apache.spark.sql.functions._
-import net.sansa_stack.ml.spark.evaluation.models.GenericSimilarityModel
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
@@ -44,9 +33,6 @@ class ResnikModel extends Transformer {
     (cont.max, t_diff)
   })
 
-  val estimatorName: String = "ResnikSimilarityEstimator"
-  val estimatorMeasureType: String = "similarity"
-
   def setDepth(depth: Int): this.type = {
     if (depth > 1) {
       _depth = depth
@@ -57,13 +43,15 @@ class ResnikModel extends Transformer {
     }
   }
 
-  override def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
+  val estimatorName: String = "ResnikSimilarityEstimator"
+  val estimatorMeasureType: String = "similarity"
+
+  def transform (dataset: Dataset[_], target: DataFrame): DataFrame = {
     val t0 = System.nanoTime()
-    import spark.implicits._
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("par").setDepth(_depth)
     val parents: DataFrame = featureExtractorModel
-      .transform(dataset, target)
+      .transform(dataset)
     val t1 = System.nanoTime()
     t_net = (t1 - t0)
 
@@ -83,6 +71,13 @@ class ResnikModel extends Transformer {
       row
     }.toDF */
 
-    target.withColumn("Resnik", resnik())
+    target.withColumn("Resnik", resnik(col("FeaturesA"), col("FeaturesB")))
   }
+
+  override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
+
+  override def transformSchema(schema: StructType): StructType =
+    throw new NotImplementedError()
+
+  override val uid: String = "FIXME"
 }
