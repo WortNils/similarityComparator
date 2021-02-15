@@ -82,18 +82,11 @@ class FeatureExtractorEval extends Transformer {
     }
   } */
 
-  protected val parent = udf((start: String, data: Dataset[(String, String)]) => {
+  /*
+  protected val parent = udf((data: Dataset[(String, String)]) => {
     // TODO: redo with map maybe?
-    var parents = data.toDF()
-    var new_parents = parents.union(parents.join(parents, Seq("_2", "_1")))
-    for (i <- 1 to _depth) {
-      while (parents != new_parents) {
-        parents = new_parents
-        new_parents = parents.union(parents.join(parents, Seq("_2", "_1"))) // join data with itself. substitute
-      }
-    }
-    parents
-  })
+
+  }) */
 
   protected val divideBy = udf((value: Double, overall: Double) => {
     value/overall
@@ -122,12 +115,20 @@ class FeatureExtractorEval extends Transformer {
     }
     val returnDF: DataFrame = _mode match {
       case "par" =>
-        // TODO: rewrite so the parents get added
-        target.withColumn("parents", parent(col("_1"), rawFeatures))
+        var parents = rawFeatures.toDF()
+        var new_parents = parents.union(parents.join(parents, Seq("_2", "_1")))
+        for (i <- 1 to _depth) {
+          while (parents != new_parents) {
+            parents = new_parents
+            new_parents = parents.union(parents.join(parents, Seq("_2", "_1"))) // join data with itself. substitute
+          }
+        }
+        parents
+        // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "ic" =>
         val overall: Double = rawFeatures.count()/2
         // TODO: find out how to do a math operation on every item in column x
-         val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row._1, overall))
+        val count: DataFrame = rawFeatures.groupBy("_1").count().map(row => divideBy(row._2, overall))
          // val info = target.join(count, count("_1") == target("_1"), "left")
          target.withColumn("informationContent", count("_1"))
       case _ => throw new Exception(

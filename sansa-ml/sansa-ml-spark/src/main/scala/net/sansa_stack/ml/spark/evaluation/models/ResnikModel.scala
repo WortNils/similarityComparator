@@ -47,6 +47,16 @@ class ResnikModel extends Transformer {
   val estimatorName: String = "ResnikSimilarityEstimator"
   val estimatorMeasureType: String = "similarity"
 
+  def setDepth(depth: Int): this.type = {
+    if (depth > 1) {
+      _depth = depth
+      this
+    }
+    else {
+      throw new Exception("Depth must be at least 1.")
+    }
+  }
+
   override def transform(dataset: Dataset[_], target: DataFrame): DataFrame = {
     val t0 = System.nanoTime()
     import spark.implicits._
@@ -56,7 +66,7 @@ class ResnikModel extends Transformer {
       .transform(dataset, target)
     val t1 = System.nanoTime()
     t_net = (t1 - t0)
-    val frame = target.withColumn("Resnik", resnik())
+
     /* frame.map{row: Row =>
       val a: DataFrame = parents.where(parents("uri") === row(0)).drop("uri").toDF
       val b: DataFrame = parents.where(parents("uri") === row(1)).drop("uri").toDF
@@ -73,5 +83,6 @@ class ResnikModel extends Transformer {
       row
     }.toDF */
 
+    target.withColumn("Resnik", resnik())
   }
 }
