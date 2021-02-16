@@ -3,6 +3,7 @@ package net.sansa_stack.ml.spark.evaluation
 // import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils._
 import net.sansa_stack.rdf.spark.io._
+import net.sansa_stack.rdf.spark.model.TripleOperations
 import org.apache.jena.graph
 import org.apache.jena.riot.Lang
 import org.apache.jena.sys.JenaSystem
@@ -17,9 +18,10 @@ object Evaluation {
     // setup spark session
     val spark = SparkSession.builder
       .appName(s"Semantic Similarity Evaluator")
-      .master("local[*]")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
 
     // cause of jena NPE issue
     JenaSystem.init()
@@ -30,9 +32,14 @@ object Evaluation {
     val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
 
     // read in data as Data`Frame
-    val triplesDf: DataFrame = spark.read.rdf(Lang.NTRIPLES)(inputPath).cache()
+    /* val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
 
-    triplesDf.show(false)
+    triplesrdd.foreach(println(_))
+    triplesrdd.toDF().show(false) */
+
+    val triplesDF: DataFrame = spark.rdf(Lang.NTRIPLES)(inputPath).toDF().cache() // Seq(("<a1>", "<ai>", "<m1>"), ("<m1>", "<pb>", "<p1>")).toDF()
+
+    triplesDF.show(false)
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
@@ -42,13 +49,13 @@ object Evaluation {
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("ic")
     val info = featureExtractorModel
-      .transform(triplesDf)
+      .transform(triplesDF)
 
-    info.show()
+    info.show(false)
 
-    val par = featureExtractorModel.setMode("par").transform(triplesDf)
+    val par = featureExtractorModel.setMode("par").transform(triplesDF)
 
-    par.show()
+    par.show(false)
 
     // similarity measures
     /* val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
