@@ -136,7 +136,8 @@ class FeatureExtractorEval extends Transformer {
           }
           token = temp
         }}
-        new_parents
+        new_parents.withColumnRenamed("_1", "entity")
+          .withColumnRenamed("_2", "parent")
         // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "ic" =>
