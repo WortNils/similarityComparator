@@ -6,6 +6,8 @@ import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
+import scala.util.control.Breaks._
+
 
 /**
  * This class creates from a dataset of triples features for Similarity Models
@@ -106,7 +108,7 @@ class FeatureExtractorEval extends Transformer {
 
     val rawFeatures: Dataset[(String, String)] = _mode match {
       case "par" => ds.flatMap(t => Seq(
-        (t._1, t._3)))
+        (t._3, t._1)))
       case "ic" => ds.flatMap(t => Seq(
         (t._1, t._3),
         (t._3, t._1)))
@@ -117,15 +119,24 @@ class FeatureExtractorEval extends Transformer {
     }
     val returnDF: DataFrame = _mode match {
       case "par" =>
-        var parents = rawFeatures.toDF()
-        var new_parents = parents.union(parents.join(parents, Seq("_2", "_1")))
-        for (i <- 1 to _depth) {
-          while (parents != new_parents) {
-            parents = new_parents
-            new_parents = parents.union(parents.join(parents, Seq("_2", "_1"))) // join data with itself. substitute
+        val parents: DataFrame = rawFeatures.toDF()
+        var right: DataFrame = parents.toDF(parents.columns.map(_ + "_R"): _*)
+        var new_parents: DataFrame = parents
+        var token: Long = new_parents.count()
+        breakable {for (i <- 1 to _depth) {
+          // join the data with itself then add these rows to the original data
+          right = new_parents.toDF(new_parents.columns.map(_ + "_R"): _*)
+          new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
+            .drop("_2", "_1_R")).distinct()
+          val temp: Long = new_parents.count()
+
+          // if the length of the dataframe is the same as in the last iteration break the loop
+          if (temp == token) {
+            break
           }
-        }
-        parents
+          token = temp
+        }}
+        new_parents
         // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "ic" =>
