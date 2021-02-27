@@ -6,6 +6,7 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+
 import scala.collection.Map
 
 class ResnikModel extends Transformer {
@@ -19,24 +20,41 @@ class ResnikModel extends Transformer {
   private var t_net: Double = 0.0
 
   private var _target: DataFrame = Seq("0", "1").toDF()
+  private var _parents: DataFrame = Seq("0", "1").toDF()
 
-  private var info: Map[String, Double] = Map("a" -> 2)
+  private var _info: Map[String, Double] = Map("a" -> 2)
 
-  protected val resnik = udf((a: List[String], b: List[String]) => {
+  protected val mapper = udf((thing: String) => {
+    _info.get(thing)
+  })
+
+  protected val resnik = udf((a: String, b: String) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
     // Timekeeping
     val t2 = System.nanoTime()
 
     // main calculations
-    val inter: List[String] = a.intersect(b)
-    val cont: List[Double] = inter.map(info(_))
+    /* val inter: List[String] = a.intersect(b)
+    val cont: List[Double] = inter.map(info(_)) */
+
+    val inter: DataFrame = _parents.filter($"entity" === a).drop("entity")
+      .intersect(_parents.filter($"entity" === b).drop("entity"))
+    // inter.show(false)
+
+    val cont: DataFrame = inter.withColumn("IC", mapper(col("parent")))
+    // cont.show(false)
 
     // Timekeeping
     val t3 = System.nanoTime()
-    val t_diff = t_net + t3 - t2
+    val t_diff = (t_net + t3 - t2)/1000000000
+
+    val maxIC: Double = cont.select("IC").orderBy(col("IC").desc).head().getDouble(0)
+    // cont.select("IC").collect().max
+    // cont.select("IC").agg(max($"IC"))
+    // cont.select("IC").rdd.max()[0][0]
 
     // return value
-    (cont.max, t_diff)
+    (maxIC, t_diff)
   })
 
   def setDepth(depth: Int): this.type = {
@@ -61,16 +79,16 @@ class ResnikModel extends Transformer {
     val t0 = System.nanoTime()
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("par").setDepth(_depth)
-    val parents: DataFrame = featureExtractorModel
+    _parents = featureExtractorModel
       .transform(dataset)
 
     // maybe rewrite this for bigger data
-    val info: Map[String, Double] = featureExtractorModel.setMode("ic")
+    _info = featureExtractorModel.setMode("ic")
       .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     val t1 = System.nanoTime()
-    t_net = (t1 - t0)
+    t_net = t1 - t0
 
-    _target.withColumn("Resnik", resnik(col("FeaturesA"), col("FeaturesB")))
+    _target.withColumn("Resnik", resnik(col("entityA"), col("entityB")))
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)

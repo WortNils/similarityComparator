@@ -1,6 +1,6 @@
 package net.sansa_stack.ml.spark.evaluation
 
-// import net.sansa_stack.ml.spark.evaluation.models._
+import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils._
 import net.sansa_stack.rdf.spark.io._
 import net.sansa_stack.rdf.spark.model.TripleOperations
@@ -43,9 +43,12 @@ object Evaluation {
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
-    val target: DataFrame = Seq("<m1>", "<m2>").toDF()
+    val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
+      .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB")
+
     target.show()
 
+    /*
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("ic")
     val info = featureExtractorModel
@@ -56,6 +59,12 @@ object Evaluation {
     val par = featureExtractorModel.setMode("par").transform(triplesDF)
 
     par.show(false)
+    */
+
+    val resnik = new ResnikModel()
+    val result = resnik.setTarget(target).setDepth(5).transform(triplesDF)
+    result.show(false)
+
 
     // similarity measures
     /* val similarityMeasures = ["Resnik", "Wu and Palmer", "Tversky", "Knappe"]
@@ -64,6 +73,5 @@ object Evaluation {
     }
     */
     // show results
-    target.show()
   }
 }
