@@ -43,8 +43,10 @@ object Evaluation {
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
-    val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
-      .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB")
+    /* val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
+      .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB") */
+    val pairizer = new PairCreator()
+    val target: DataFrame = pairizer.create(triplesDF)
 
     target.show()
 
