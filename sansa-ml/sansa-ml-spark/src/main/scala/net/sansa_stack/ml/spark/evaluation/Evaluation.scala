@@ -48,7 +48,7 @@ object Evaluation {
     val pairizer = new PairCreator()
     val target: DataFrame = pairizer.create(triplesDF)
 
-    target.show()
+    target.show(false)
 
     /*
     val featureExtractorModel = new FeatureExtractorEval()
