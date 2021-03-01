@@ -124,7 +124,7 @@ class ResnikModel extends Transformer {
       .join(bparents, _target("entityB") === bparents("entity"))
       .drop("entity")
       .withColumnRenamed("parents", "featuresB")
-    target.show(false)
+    // target.show(false)
 
     // target.where($"featuresB".isNull).show(false)
 
@@ -136,7 +136,6 @@ class ResnikModel extends Transformer {
     // timekeeping
     val t1 = System.nanoTime()
     t_net = t1 - t0
-
 
     target.withColumn("Resnik", resnik(col("featuresA"), col("featuresB"))).drop("featuresA", "featuresB")
   }
