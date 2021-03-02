@@ -11,6 +11,8 @@ class PairCreator {
   def create (dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
+    // alternativ: crossjoin
+
     val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
 
     val temper = ds.flatMap(t => Seq((t._1), (t._3))).distinct().collectAsList()

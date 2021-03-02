@@ -33,7 +33,8 @@ class ResnikModel extends Transformer {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000000000
-      return (0, t_diff)
+      return (0.0, t_diff)
+      // return 0.0
     }
     else {
       // Timekeeping
@@ -75,6 +76,7 @@ class ResnikModel extends Transformer {
 
       // return value
       return (maxIC, t_diff)
+      // return maxIC
     }
   }
 
