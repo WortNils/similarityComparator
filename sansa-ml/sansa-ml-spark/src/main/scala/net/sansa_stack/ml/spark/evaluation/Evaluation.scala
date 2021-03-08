@@ -32,7 +32,7 @@ object Evaluation {
 
     // define inputpath if it is not parameter
     val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
-    val inputPath2 = "C:/Users/nilsw/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
+    val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
 
     // read in data as Data`Frame
     /* val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
@@ -51,7 +51,7 @@ object Evaluation {
     // triplesDS.take(10).foreach(println(_))
     implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
 
-    val triplesDF = triplesRDD.as[Triple].toDF() */
+    val triplesDF = triplesRDD.as[Triple].toDF()
     NTripleReader
       .load(
         spark,
@@ -61,7 +61,7 @@ object Evaluation {
       .toDF()
       .show(false)
 
-    triplesDF.show(false)
+    triplesDF.show(false) */
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
@@ -86,14 +86,16 @@ object Evaluation {
     par.show(false)
     */
 
-    val resnik = new ResnikModel()
+    /* val resnik = new ResnikModel()
     val result = resnik.setTarget(target).setDepth(5).transform(triplesDF)
-    result.show(false)
+    result.show(false) */
 
-    /*
     val wuandpalmer = new WuAndPalmerModel()
-    val result2 = wuandpalmer.setTarget(target).setDepth(5).transform(triplesDF)
-    result2.show(false) */
+    val result2 = wuandpalmer.setTarget(target)
+      .setDepth(5)
+      .setRoot(target.first().getString(1))
+      .transform(triplesDF)
+    result2.show(false)
 
     /*
     val asGraph = new SimilarityExperimentMetaGraphFactory()

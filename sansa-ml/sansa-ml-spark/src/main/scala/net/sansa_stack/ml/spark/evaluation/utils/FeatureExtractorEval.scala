@@ -113,13 +113,13 @@ class FeatureExtractorEval extends Transformer {
         // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "par2" | "root" =>
-        val parents: DataFrame = rawFeatures.toDF().withColumn("depth", lit(1))
+        val parents: DataFrame = rawFeatures.toDF()
         var right: DataFrame = parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
-        var new_parents: DataFrame = parents
+        var new_parents: DataFrame = parents.withColumn("depth", lit(1))
         var token: Long = new_parents.count()
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
-          right = new_parents.drop("depth").toDF(new_parents.columns.map(_ + "_R"): _*)
+          right = new_parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
           new_parents = new_parents.union(new_parents.drop("depth").join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R").withColumn("depth", lit(i + 1))).distinct()
           val temp: Long = new_parents.count()
@@ -144,10 +144,6 @@ class FeatureExtractorEval extends Transformer {
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
-    if (_mode == "root") {
-
-    }
-
     returnDF
   }
 
