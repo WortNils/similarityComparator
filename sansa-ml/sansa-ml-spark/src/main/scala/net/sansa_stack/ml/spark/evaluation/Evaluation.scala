@@ -83,6 +83,7 @@ object Evaluation {
     val result = resnik.setTarget(target).setDepth(5).transform(triplesDF)
     result.show(false)
 
+    /*
     val asGraph = new SimilarityExperimentMetaGraphFactory()
     val ResGraph = asGraph.createRdfOutput(
       result
@@ -93,7 +94,8 @@ object Evaluation {
     )(
       inputDatasetNumbertOfTriples = triplesDF.count(),
       dataSetInformationFilePath = inputPath)
-    ResGraph.take(10).foreach(println(_))
+    ResGraph.take(10).foreach(println(_)) */
+
     // ResGraph.coalesce(1).saveAsNTriplesFile("./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movieResult")
 
     // similarity measures

@@ -43,7 +43,7 @@ class SimilaritySampler extends Transformer {
       .distinct()
     retDf
   }
-  
+
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
 
   override def transformSchema(schema: StructType): StructType =
