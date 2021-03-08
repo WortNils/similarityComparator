@@ -2,7 +2,7 @@ package net.sansa_stack.ml.spark.evaluation.utils
 
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
@@ -14,7 +14,7 @@ import scala.util.control.Breaks._
  */
 class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("par", "ic")
+  private val _availableModes = Array("par", "par2", "ic")
   private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
@@ -140,6 +140,26 @@ class FeatureExtractorEval extends Transformer {
           .withColumnRenamed("_2", "parent")
         // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
+      case "par2" =>
+        val parents: DataFrame = rawFeatures.toDF().withColumn("depth", lit(1))
+        var right: DataFrame = parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
+        var new_parents: DataFrame = parents
+        var token: Long = new_parents.count()
+        breakable {for (i <- 1 to _depth) {
+          // join the data with itself then add these rows to the original data
+          right = new_parents.drop("depth").toDF(new_parents.columns.map(_ + "_R"): _*)
+          new_parents = new_parents.union(new_parents.drop("depth").join(right, new_parents("_2") === right("_1_R"))
+            .drop("_2", "_1_R").withColumn("depth", lit(i + 1))).distinct()
+          val temp: Long = new_parents.count()
+
+          // if the length of the dataframe is the same as in the last iteration break the loop
+          if (temp == token) {
+            break
+          }
+          token = temp
+        }}
+        new_parents.withColumnRenamed("_1", "entity")
+          .withColumnRenamed("_2", "parent")
       case "ic" =>
         overall = rawFeatures.count()/2
         val count: DataFrame = rawFeatures.groupBy("_1").count()
