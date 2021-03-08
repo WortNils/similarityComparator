@@ -14,12 +14,19 @@ import scala.util.control.Breaks._
  */
 class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("par", "par2", "ic")
+  private val _availableModes = Array("par", "par2", "ic", "root")
   private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
+  private var _root: String = "root"
+
   var overall: Double = 0
+
+  protected val divideBy = udf((value: Double) => {
+    value/overall
+  })
+
 
   /**
    * This method changes the features to be extracted
@@ -52,49 +59,14 @@ class FeatureExtractorEval extends Transformer {
   }
 
   /**
-   * private method for depth-search of parent nodes
-   * @param parents DataFrame of depth 0 parents
-   * @param data full scope DataFrame
-   * @return returns a DataFrame of all parents up to _depth
+   * This method sets the root parameter for the isA-based measures
+   * @param root a string specifying the root node of a graph
+   * @return returns the FeatureExtractor
    */
-  /* private def findParents(parents: DataFrame, data: DataFrame): DataFrame = {
-    import spark.implicits._
-    val search: DataFrame = parents
-    data.explode()
-    for (i <- 1 to _depth) {
-       while (!search.isEmpty) {
-         search.foreach{row =>
-           parents = parents.union(data.filter(data("uri") === row(0))) p = p u {parents(search)}
-           search = search.filter($"uri" != row(0))
-           // TODO: find out what is wrong with filter
-           /* val parent = udf((row: Row) => {
-             val l = row.toSeq.toList
-             val firstElement = l(0)
-
-           })
-           // filter out cyclic paths from currentPaths
-           val noCycle = udf((row: Row) => {
-             val l = row.toSeq.toList
-               .filter(_!=None)
-               .filter(_!=null)
-             val lFromSet = l.toSet
-             l.length == lFromSet.size
-           })
-           val nNamedColumns = currentPaths.columns.filter(_.startsWith("n_")).toList */
-         }
-       }
-    }
-  } */
-
-  /*
-  protected val parent = udf((data: Dataset[(String, String)]) => {
-    // TODO: redo with map maybe?
-
-  }) */
-
-  protected val divideBy = udf((value: Double) => {
-    value/overall
-  })
+  def setRoot(root: String): this.type = {
+    _root = root
+    this
+  }
 
   /**
    * Takes read in dataframe and produces a dataframe with features
@@ -107,7 +79,7 @@ class FeatureExtractorEval extends Transformer {
     val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
 
     val rawFeatures: Dataset[(String, String)] = _mode match {
-      case "par" => ds.flatMap(t => Seq(
+      case "par" | "par2" | "root" => ds.flatMap(t => Seq(
         (t._3, t._1)))
       case "ic" => ds.flatMap(t => Seq(
         (t._1, t._3),
@@ -140,7 +112,7 @@ class FeatureExtractorEval extends Transformer {
           .withColumnRenamed("_2", "parent")
         // add join with target
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
-      case "par2" =>
+      case "par2" | "root" =>
         val parents: DataFrame = rawFeatures.toDF().withColumn("depth", lit(1))
         var right: DataFrame = parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
         var new_parents: DataFrame = parents
@@ -172,6 +144,10 @@ class FeatureExtractorEval extends Transformer {
           "You selected mode " + _mode + " .\n " +
           "Currently available modes are: " + _availableModes)
     }
+    if (_mode == "root") {
+
+    }
+
     returnDF
   }
 
