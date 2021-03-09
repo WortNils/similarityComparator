@@ -3,11 +3,12 @@ package net.sansa_stack.ml.spark.evaluation.models
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import scala.collection.mutable.WrappedArray.ofRef
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
+import scala.collection.mutable.WrappedArray.ofRef
 import scala.collection.Map
 
 class WuAndPalmerModel extends Transformer{
@@ -83,9 +84,17 @@ class WuAndPalmerModel extends Transformer{
     }
   }
 
-  protected val wuandpalmer = udf((a: ofRef[(String, Int)], b: ofRef[(String, Int)]) => {
+  protected val wuandpalmer = udf((a: ofRef[Row], b: ofRef[Row]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
-    WuAndPalmerMethod(a.toList, b.toList)
+    val a2 = a.map({
+      case Row(parent: String, depth: Int) =>
+        (parent, depth)
+    })
+    val b2 = b.map({
+      case Row(parent: String, depth: Int) =>
+        (parent, depth)
+    })
+    WuAndPalmerMethod(a2.toList, b2.toList)
   })
 
   protected val toTuple = udf((par: String, depth: Int) => {
