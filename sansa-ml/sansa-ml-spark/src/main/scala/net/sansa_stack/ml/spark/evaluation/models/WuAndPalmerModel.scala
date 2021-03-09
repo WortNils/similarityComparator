@@ -19,7 +19,6 @@ class WuAndPalmerModel extends Transformer{
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
-  private var _root: String = "root"
   private var _rootdist: Map[String, Int] = Map("ab" -> 2)
   private var _max: Long = 0
 
@@ -61,7 +60,7 @@ class WuAndPalmerModel extends Transformer{
       val c2 = c.map(key => (key, a2(key) + b2(key)))
       val min = c2.minBy(_._2)
 
-      val minDist = min._2
+      val minDist: Int = min._2
       var ccc = new Array[String](1)
       ccc(0) = min._1
       var n = new Array[Int](1)
@@ -71,8 +70,9 @@ class WuAndPalmerModel extends Transformer{
       } catch {
         case f: NoSuchElementException => n(0) = _max.toInt
       }
+      val temp: Int = 2*n(0)
 
-      val wupalm: Double = 0.0 // (2 * n(0)) / (minDist + 2 * n(0))
+      val wupalm: Double = temp.toDouble / (minDist.toDouble + temp.toDouble)
 
       // Timekeeping
       val t3 = System.nanoTime()
@@ -86,6 +86,7 @@ class WuAndPalmerModel extends Transformer{
 
   protected val wuandpalmer = udf((a: ofRef[Row], b: ofRef[Row]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
+    // TODO: insert case for null
     val a2 = a.map({
       case Row(parent: String, depth: Int) =>
         (parent, depth)
@@ -115,11 +116,6 @@ class WuAndPalmerModel extends Transformer{
     }
   }
 
-  def setRoot(root: String): this.type = {
-    _root = root
-    this
-  }
-
   def setTarget(target: DataFrame): this.type = {
     _target = target
     this
@@ -134,10 +130,11 @@ class WuAndPalmerModel extends Transformer{
       .setMode("par2").setDepth(_depth)
     _parents = featureExtractorModel
       .transform(dataset)
+
+    val bparents: DataFrame = _parents
       .withColumn("parent2", toTuple(col("parent"), col("depth")))
       .drop("parent", "depth")
-
-    val bparents: DataFrame = _parents.groupBy("entity")
+      .groupBy("entity")
       .agg(collect_list("parent2"))
       .withColumnRenamed("collect_list(parent2)", "parents")
     // bparents.show(false)
@@ -150,16 +147,22 @@ class WuAndPalmerModel extends Transformer{
       .join(bparents, _target("entityB") === bparents("entity"))
       .drop("entity")
       .withColumnRenamed("parents", "featuresB")
-    target.show(false)
-    target.printSchema()
+    // target.show(false)
+    // target.printSchema()
 
+    /*
     val rooter = _parents.filter(_parents("parent2._1") === _root)
       .withColumn("rootdist", fromTuple(col("parent2")))
       .drop("parent2")
+     */
+    val rooter = _parents.groupBy("entity")
+      .agg(max(_parents("depth")))
+      .withColumnRenamed("max(depth)", "rootdist")
 
-    rooter.show(false)
+    // rooter.show(false)
 
     _rootdist = rooter.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+    // println(_rootdist)
     _max = dataset.count()
     // target.where($"featuresB".isNull).show(false)
 

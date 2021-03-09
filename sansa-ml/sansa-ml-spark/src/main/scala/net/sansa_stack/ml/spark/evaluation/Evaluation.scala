@@ -32,7 +32,7 @@ object Evaluation {
 
     // define inputpath if it is not parameter
     val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
-    val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
+    // val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
 
     // read in data as Data`Frame
     /* val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
@@ -93,7 +93,6 @@ object Evaluation {
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)
       .setDepth(5)
-      .setRoot(target.first().getString(1))
       .transform(triplesDF)
     result2.show(false)
 
