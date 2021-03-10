@@ -139,7 +139,11 @@ class ResnikModel extends Transformer {
     val t1 = System.nanoTime()
     t_net = t1 - t0
 
-    target.withColumn("Resnik", resnik(col("featuresA"), col("featuresB"))).drop("featuresA", "featuresB")
+    val result = target.withColumn("ResnikTemp", resnik(col("featuresA"), col("featuresB")))
+      .drop("featuresA", "featuresB")
+    result.withColumn("Resnik", result("ResnikTemp._1"))
+      .withColumn("ResnikTime", result("ResnikTemp._2"))
+      .drop("ResnikTemp")
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)

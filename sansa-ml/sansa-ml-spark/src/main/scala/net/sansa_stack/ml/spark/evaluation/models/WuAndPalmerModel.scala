@@ -170,8 +170,11 @@ class WuAndPalmerModel extends Transformer{
     val t1 = System.nanoTime()
     t_net = t1 - t0
 
-    target.withColumn("WuAndPalmer", wuandpalmer(col("featuresA"), col("featuresB")))
+    val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
       .drop("featuresA", "featuresB")
+    result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+      .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
+      .drop("WuAndPalmerTemp")
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
