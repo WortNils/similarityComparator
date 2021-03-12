@@ -32,7 +32,8 @@ object Evaluation {
 
     // define inputpath if it is not parameter
     val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
-    // val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
+    val outputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/evaluationData/movie2.csv"
+    val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
 
     // read in data as Data`Frame
     /* val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
@@ -40,7 +41,7 @@ object Evaluation {
     triplesrdd.foreach(println(_))
     triplesrdd.toDF().show(false) */
 
-    val triplesDF: DataFrame = spark.rdf(Lang.NTRIPLES)(inputPath).toDF().cache() // Seq(("<a1>", "<ai>", "<m1>"), ("<m1>", "<pb>", "<p1>")).toDF()
+    // val triplesDF: DataFrame = spark.rdf(Lang.NTRIPLES)(inputPath).toDF().cache() // Seq(("<a1>", "<ai>", "<m1>"), ("<m1>", "<pb>", "<p1>")).toDF()
     /* val triplesRDD: RDD[org.apache.jena.graph.Triple] = NTripleReader.load(
       spark,
       inputPath,
@@ -52,23 +53,21 @@ object Evaluation {
     implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
 
     val triplesDF = triplesRDD.as[Triple].toDF()
-    NTripleReader
+     */
+    val triplesDF = NTripleReader
       .load(
         spark,
-        inputPath2,
+        inputPath,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF()
-      .show(false)
-
-    triplesDF.show(false) */
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
     /* val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
       .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB") */
-    val pairizer = new PairCreator()
-    val target: DataFrame = pairizer.create(triplesDF)
+    val sampler = new SimilaritySampler()
+    val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
     // val target: DataFrame = triplesDF.crossJoin(triplesDF)
 
     target.show(false)
@@ -86,9 +85,11 @@ object Evaluation {
     par.show(false)
     */
 
-    /* val resnik = new ResnikModel()
-    val result = resnik.setTarget(target).setDepth(5).transform(triplesDF)
-    result.show(false) */
+    val resnik = new ResnikModel()
+    val result = resnik.setTarget(target)
+      .setDepth(5)
+      .transform(triplesDF)
+    result.show(false)
 
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)
@@ -118,5 +119,8 @@ object Evaluation {
     }
     */
     // show results
+    val finaldf = result.join(result2, Seq("entityA", "entityB"))
+    finaldf.show(false)
+    finaldf.coalesce(1).write.mode("overwrite").csv(outputPath)
   }
 }

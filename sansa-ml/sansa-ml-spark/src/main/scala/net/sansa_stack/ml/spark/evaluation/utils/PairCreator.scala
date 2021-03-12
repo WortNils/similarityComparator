@@ -23,8 +23,10 @@ class PairCreator {
     for (i <- 0 until (l-1)) {
       // var j: Int = 0
       for (j <- 0 until (l-1)) {
-        val x: (String, String) = (temp(i), temp(j))
-        arr += x
+        if (j >= i) {
+          val x: (String, String) = (temp(i), temp(j))
+          arr += x
+        }
       }
     }
     val ret = arr.toSeq
