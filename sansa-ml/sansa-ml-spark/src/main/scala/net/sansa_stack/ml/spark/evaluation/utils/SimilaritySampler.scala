@@ -6,12 +6,22 @@ import org.apache.spark.sql.functions.monotonicallyIncreasingId
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
+/**
+ * This Class creates from a dataset of triples, a DataFrame that pairs two Uris according to given parameters
+ */
 class SimilaritySampler extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("rand", "cross", "crossFull", "crossOld")
   private var _mode: String = "cross"
   private val _outputCols: Array[String] = Array("entityA", "entityB")
+  private var _seed: Long = 10
 
+
+  /**
+   * This method changes how the entities are paired up
+   * @param mode a string specifying the mode
+   * @return returns the FeatureExtractor
+   */
   def setMode(mode: String): this.type = {
     if (_availableModes.contains(mode)) {
       _mode = mode
@@ -22,17 +32,29 @@ class SimilaritySampler extends Transformer {
     }
   }
 
+  def setSeed(seed: Long): this.type = {
+    if (seed > 0) {
+      _seed = seed
+      this
+    } else {
+      throw new Exception("The specified amount was not negative.")
+    }
+  }
+
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
     val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
 
-    // TODO: remove literals
-    val raw = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+    val rawLit = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
       .withColumnRenamed("value", "entityA")
 
+    // dirty way to remove literals
+    // val raw = rawLit.where(rawLit("entityA").contains("http://"))
+    val raw = rawLit
+
     val rawDF: DataFrame = _mode match {
-      case "cross" =>
+      case "cross" | "sparql" =>
         val tempDf = raw.crossJoin(raw.withColumnRenamed("entityA", "entityB"))
         tempDf.where(tempDf("entityA") >= tempDf("entityB"))
       case "crossFull" =>
@@ -44,7 +66,15 @@ class SimilaritySampler extends Transformer {
             .withColumnRenamed("idA", "idB"))
         tempDf.where(tempDf("idA") >= tempDf("idB")).drop("idA", "idB")
       case "rand" =>
-        raw.crossJoin(raw)
+        val rawt = raw.sample(withReplacement = true, fraction = 0.002, seed = _seed)
+        val tempDf = rawt.crossJoin(rawt.withColumnRenamed("entityA", "entityB"))
+        tempDf.where(tempDf("entityA") >= tempDf("entityB"))
+      case "limit" =>
+        // take the first n elements of the dataset
+        raw
+      case "sparql" =>
+        // sample according to a sparql query
+        raw
     }
 
     /*

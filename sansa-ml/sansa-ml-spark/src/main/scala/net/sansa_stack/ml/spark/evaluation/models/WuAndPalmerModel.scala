@@ -127,7 +127,11 @@ class WuAndPalmerModel extends Transformer{
 
     // parent calculation
     val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("par2").setDepth(_depth)
+      .setMode("par2").setDepth(_depth).setTarget(_target.drop("entityA")
+      .withColumnRenamed("entityB", "uri")
+      .union(_target.drop("entityB")
+        .withColumnRenamed("entityA", "uri"))
+      .distinct())
     _parents = featureExtractorModel
       .transform(dataset)
 

@@ -19,6 +19,9 @@ class FeatureExtractorEval extends Transformer {
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
+  import spark.implicits._
+
+  private var _target: DataFrame = Seq("0", "1").toDF()
   private var _root: String = "root"
 
   var overall: Double = 0
@@ -30,7 +33,7 @@ class FeatureExtractorEval extends Transformer {
 
   /**
    * This method changes the features to be extracted
-   * @param mode a string specifying the mode. Modes are abbreviations of their corresponding models
+   * @param mode a string specifying the mode
    * @return returns the FeatureExtractor
    */
   def setMode(mode: String): this.type = {
@@ -69,6 +72,16 @@ class FeatureExtractorEval extends Transformer {
   }
 
   /**
+   * This method sets the target Dataframe for the features
+    * @param target a Dataframe specifying the target uris
+   * @return returns the FeatureExtractor
+   */
+  def setTarget(target: DataFrame): this.type = {
+    _target = target
+    this
+  }
+
+  /**
    * Takes read in dataframe and produces a dataframe with features
     * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with two columns, one for string of URI and one of a list of features
@@ -93,11 +106,10 @@ class FeatureExtractorEval extends Transformer {
       case "par" =>
         val parents: DataFrame = rawFeatures.toDF()
         var right: DataFrame = parents.toDF(parents.columns.map(_ + "_R"): _*)
-        var new_parents: DataFrame = parents
+        var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1")).drop("uri")
         var token: Long = new_parents.count()
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
-          right = new_parents.toDF(new_parents.columns.map(_ + "_R"): _*)
           new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R")).distinct()
           val temp: Long = new_parents.count()
@@ -115,7 +127,8 @@ class FeatureExtractorEval extends Transformer {
       case "par2" | "root" =>
         val parents: DataFrame = rawFeatures.toDF()
         var right: DataFrame = parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
-        var new_parents: DataFrame = parents.withColumn("depth", lit(1))
+        var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1"))
+          .drop("uri").withColumn("depth", lit(1))
         var token: Long = new_parents.count()
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data

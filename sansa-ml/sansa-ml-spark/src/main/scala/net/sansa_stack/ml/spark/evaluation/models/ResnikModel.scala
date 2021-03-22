@@ -110,6 +110,11 @@ class ResnikModel extends Transformer {
     // parent calculation
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("par").setDepth(_depth)
+      .setTarget(_target.drop("entityA")
+        .withColumnRenamed("entityB", "uri")
+        .union(_target.drop("entityB")
+          .withColumnRenamed("entityA", "uri"))
+        .distinct())
     _parents = featureExtractorModel
       .transform(dataset)
 
