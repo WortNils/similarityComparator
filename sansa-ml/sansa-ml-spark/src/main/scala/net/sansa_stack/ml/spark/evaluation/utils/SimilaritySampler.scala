@@ -32,6 +32,11 @@ class SimilaritySampler extends Transformer {
     }
   }
 
+  /**
+   * This method changes the seed to be used for randomized samplings
+   * @param mode a Long specifying the random seed
+   * @return returns the FeatureExtractor
+   */
   def setSeed(seed: Long): this.type = {
     if (seed > 0) {
       _seed = seed
@@ -41,6 +46,11 @@ class SimilaritySampler extends Transformer {
     }
   }
 
+  /**
+   * Takes read in dataset and produces a dataframe paired up entities
+   * @param dataset a dataframe read in over sansa rdf layer
+   * @return a dataframe with two columns, one for string of the first URI and one for the second
+   */
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
@@ -77,13 +87,6 @@ class SimilaritySampler extends Transformer {
         raw
     }
 
-    /*
-    val retDf = rawDF
-      .withColumnRenamed(cols(0), _outputCols(0))
-      .withColumnRenamed(cols(1), _outputCols(1))
-      .distinct()
-    retDf
-     */
     rawDF
   }
 
