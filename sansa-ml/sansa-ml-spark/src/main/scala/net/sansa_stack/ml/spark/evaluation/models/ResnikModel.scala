@@ -10,6 +10,10 @@ import scala.collection.mutable.WrappedArray.ofRef
 
 import scala.collection.Map
 
+/**
+ * This class takes a base dataset and a target DataFrame and returns the Resnik similarity value
+ * and the time it took to arrive at that value in a DataFrame
+ */
 class ResnikModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
@@ -25,39 +29,37 @@ class ResnikModel extends Transformer {
 
   private var _info: Map[String, Double] = Map("a" -> 2)
 
+  val estimatorName: String = "ResnikSimilarityEstimator"
+  val estimatorMeasureType: String = "similarity"
+
+  /**
+   * This udf maps a uri to its information content value
+   */
   protected val mapper = udf((thing: String) => {
     _info.get(thing)
   })
 
+  /**
+   * This function takes a list of parents for two entities a and b and returns their Resnik similarity value
+   * and the time it took to calculate that value
+   * @param a List of parents for entity a
+   * @param b List of parents for entity b
+   * @return 2-Tuple of Resnik value and Resnik time
+   */
   def resnikMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000000000
       return (0.0, t_diff)
-      // return 0.0
     }
     else {
       // Timekeeping
       val t2 = System.nanoTime()
 
-      // val _a = a.get
-      // val _b = b.get
-
       // main calculations
       val inter: List[String] = a.intersect(b)
       val cont: List[Double] = inter.map(_info(_))
 
-      /* ideas to counter "Dataset transformations and actions can only be invoked by the driver,
-         not inside of other Dataset transformations":
-         - turn parents into map
-         - two joins on the target data to add the parents as feature columns */
-
-      /* val inter: DataFrame = _parents.filter($"entity" === a).drop("entity")
-        .intersect(_parents.filter($"entity" === b).drop("entity"))
-      // inter.show(false)
-
-      val cont: DataFrame = inter.withColumn("IC", mapper(col("parent")))
-      // cont.show(false) */
       var maxIC: Double = 0.0
       if (cont.nonEmpty) {
         maxIC = cont.max
@@ -69,22 +71,24 @@ class ResnikModel extends Transformer {
       val t3 = System.nanoTime()
       val t_diff = (t_net + t3 - t2)/1000000000
 
-      // val maxIC: Double = cont.select("IC").orderBy(col("IC").desc).head().getDouble(0)
-      // cont.select("IC").collect().max
-      // cont.select("IC").agg(max($"IC"))
-      // cont.select("IC").rdd.max()[0][0]
-
       // return value
       return (maxIC, t_diff)
-      // return maxIC
     }
   }
 
+  /**
+   * udf to invoke the ResnikMethod with the correct parameters
+   */
   protected val resnik = udf((a: ofRef[String], b: ofRef[String]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
     resnikMethod(a.toList, b.toList)
   })
 
+  /**
+   * This method sets the iteration depth for the parent feature extraction
+   * @param depth Integer value indicating how deep parents are searched for
+   * @return the Resnik model
+   */
   def setDepth(depth: Int): this.type = {
     if (depth > 1) {
       _depth = depth
@@ -95,14 +99,21 @@ class ResnikModel extends Transformer {
     }
   }
 
+  /**
+   * This method sets the target Dataframe for this Model
+   * @param target target Dataframe with pairs of entities
+   * @return the Resnik model
+   */
   def setTarget(target: DataFrame): this.type = {
     _target = target
     this
   }
 
-  val estimatorName: String = "ResnikSimilarityEstimator"
-  val estimatorMeasureType: String = "similarity"
-
+  /**
+   * Takes read in dataframe, and target dataframe and produces a dataframe with similarity values
+   * @param dataset a dataframe read in over sansa rdf layer
+   * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
+   */
   def transform (dataset: Dataset[_]): DataFrame = {
     // timekeeping
     val t0 = System.nanoTime()
@@ -132,8 +143,6 @@ class ResnikModel extends Transformer {
       .drop("entity")
       .withColumnRenamed("parents", "featuresB")
     // target.show(false)
-
-    // target.where($"featuresB".isNull).show(false)
 
     // information content calculation
     // TODO: maybe rewrite this for bigger data
