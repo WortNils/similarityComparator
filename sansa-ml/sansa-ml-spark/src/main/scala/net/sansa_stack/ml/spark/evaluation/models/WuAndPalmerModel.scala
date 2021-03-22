@@ -11,6 +11,10 @@ import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import scala.collection.mutable.WrappedArray.ofRef
 import scala.collection.Map
 
+/**
+ * This class takes a base dataset and a target DataFrame and returns the Wu and Palmer similarity value
+ * and the time it took to arrive at that value in a DataFrame
+ */
 class WuAndPalmerModel extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
@@ -30,12 +34,17 @@ class WuAndPalmerModel extends Transformer{
   private var _target: DataFrame = Seq("0", "1").toDF()
   private var _parents: DataFrame = Seq("0", "1").toDF()
 
+  /**
+   * This method takes two lists of parents and their distance to the entity and returns the Wu and Palmer similarity value
+   * @param a List of parents and their distance to entity a
+   * @param b List of parents and their distance to entity b
+   * @return 2-Tuple of Wu and Palmer value and time taken
+   */
   def WuAndPalmerMethod(a: List[(String, Int)], b: List[(String, Int)]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000000000
       return (0.0, t_diff)
-      // return 0.0
     }
     else {
       // Timekeeping
@@ -80,10 +89,12 @@ class WuAndPalmerModel extends Transformer{
 
       // return value
       return (wupalm, t_diff)
-      // return maxIC
     }
   }
 
+  /**
+   * udf to invoke the WuAndPalmerMethod with the correct parameters
+   */
   protected val wuandpalmer = udf((a: ofRef[Row], b: ofRef[Row]) => {
     /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
     // TODO: insert case for null
@@ -98,14 +109,25 @@ class WuAndPalmerModel extends Transformer{
     WuAndPalmerMethod(a2.toList, b2.toList)
   })
 
+  /**
+   * udf to turn two columns into one tuple column
+   */
   protected val toTuple = udf((par: String, depth: Int) => {
     Tuple2(par, depth)
   })
 
+  /**
+   * udf to turn a tuple column into a single Int column
+   */
   protected val fromTuple = udf((thing: (String, Int)) => {
     thing._2
   })
 
+  /**
+   * This method sets the iteration depth for the parent feature extraction
+   * @param depth Integer value indicating how deep parents are searched for
+   * @return the Wu and Palmer model
+   */
   def setDepth(depth: Int): this.type = {
     if (depth > 1) {
       _depth = depth
@@ -116,11 +138,21 @@ class WuAndPalmerModel extends Transformer{
     }
   }
 
+  /**
+   * This method sets the target Dataframe for this Model
+   * @param target target Dataframe with pairs of entities
+   * @return the Wu and Palmer model
+   */
   def setTarget(target: DataFrame): this.type = {
     _target = target
     this
   }
 
+  /**
+   * Takes read in dataframe, and target dataframe and produces a dataframe with similarity values
+   * @param dataset a dataframe read in over sansa rdf layer
+   * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
+   */
   def transform (dataset: Dataset[_]): DataFrame = {
     // timekeeping
     val t0 = System.nanoTime()

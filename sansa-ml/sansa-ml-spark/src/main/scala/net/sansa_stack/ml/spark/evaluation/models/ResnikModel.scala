@@ -44,7 +44,7 @@ class ResnikModel extends Transformer {
    * and the time it took to calculate that value
    * @param a List of parents for entity a
    * @param b List of parents for entity b
-   * @return 2-Tuple of Resnik value and Resnik time
+   * @return 2-Tuple of Resnik value and time taken
    */
   def resnikMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
