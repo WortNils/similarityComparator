@@ -55,14 +55,14 @@ object Evaluation {
     implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
 
     val triplesDF = triplesRDD.as[Triple].toDF()
-     */
+    */
     val triplesDF = NTripleReader
       .load(
         spark,
         inputPath,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
-      .toDF()
+      .toDF().cache()
 
     triplesDF.show(false)
     println(triplesDF.count())
@@ -107,10 +107,12 @@ object Evaluation {
 
     // show results
 
-
+    /*
     val finaldf = result.join(result2, Seq("entityA", "entityB"))
     finaldf.show(false)
     finaldf.coalesce(1).write.mode("overwrite").csv(outputPath)
+
+     */
 
 
   /*

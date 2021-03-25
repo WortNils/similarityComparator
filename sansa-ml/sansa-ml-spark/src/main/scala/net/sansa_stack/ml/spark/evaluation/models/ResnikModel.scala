@@ -24,10 +24,10 @@ class ResnikModel extends Transformer {
 
   private var t_net: Double = 0.0
 
-  private var _target: DataFrame = Seq("0", "1").toDF()
-  private var _parents: DataFrame = Seq("0", "1").toDF()
+  private var _target: DataFrame = spark.emptyDataFrame
+  private var _parents: DataFrame = spark.emptyDataFrame
 
-  private var _info: Map[String, Double] = Map("a" -> 2)
+  private var _info: Map[String, Double] = Map(" " -> 0)
 
   val estimatorName: String = "ResnikSimilarityEstimator"
   val estimatorMeasureType: String = "similarity"

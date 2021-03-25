@@ -191,13 +191,15 @@ class WuAndPalmerModel extends Transformer{
       .withColumn("rootdist", fromTuple(col("parent2")))
       .drop("parent2")
      */
-    val rooter = _parents.groupBy("entity")
-      .agg(max(_parents("depth")))
+    val rents = _parents.drop("entity", "depth").distinct().withColumnRenamed("parent", "uri")
+    val rooter = featureExtractorModel.setMode("par2").setDepth(_depth).setTarget(rents).transform(dataset)
+    val roots = rooter.groupBy("entity")
+      .agg(max(rooter("depth")))
       .withColumnRenamed("max(depth)", "rootdist")
 
     // rooter.show(false)
 
-    _rootdist = rooter.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+    _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
     // println(_rootdist)
     _max = dataset.count()
     // target.where($"featuresB".isNull).show(false)
