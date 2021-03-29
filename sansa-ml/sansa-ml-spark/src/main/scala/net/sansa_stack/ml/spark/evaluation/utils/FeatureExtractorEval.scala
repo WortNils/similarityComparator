@@ -1,6 +1,8 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
 import org.apache.spark.ml.Transformer
+import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
+import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
@@ -14,7 +16,7 @@ import scala.util.control.Breaks._
  */
 class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("par", "par2", "ic", "root")
+  private val _availableModes = Array("par", "par2", "ic", "root", "tvers")
   private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
@@ -94,7 +96,7 @@ class FeatureExtractorEval extends Transformer {
     val rawFeatures: Dataset[(String, String)] = _mode match {
       case "par" | "par2" | "root" => ds.flatMap(t => Seq(
         (t._3, t._1)))
-      case "ic" => ds.flatMap(t => Seq(
+      case "ic" | "tvers" => ds.flatMap(t => Seq(
         (t._1, t._3),
         (t._3, t._1)))
       case _ => throw new Exception(
@@ -152,6 +154,17 @@ class FeatureExtractorEval extends Transformer {
           .drop("count").withColumnRenamed("_1", "entity")
         // val info = target.join(count, count("_1") == target("_1"), "left")
         info
+      case "tvers" =>
+        val filteredFeaturesDataFrame = rawFeatures.select(rawFeatures("uri") === _target("uri"))
+        val cvModel: CountVectorizerModel = new CountVectorizer()
+          .setInputCol("extractedFeatures")
+          .setOutputCol("vectorizedFeatures")
+          .fit(filteredFeaturesDataFrame)
+        val tmpCvDf: DataFrame = cvModel.transform(filteredFeaturesDataFrame)
+        // val isNoneZeroVector = udf({ v: Vector => v.numNonzeros > 0 }, DataTypes.BooleanType)
+        val isNoneZeroVector = udf({ v: Vector => v.numNonzeros > 0 })
+        val countVectorizedFeaturesDataFrame: DataFrame = tmpCvDf.filter(isNoneZeroVector(col("vectorizedFeatures"))).select("uri", "vectorizedFeatures").cache()
+        countVectorizedFeaturesDataFrame
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +

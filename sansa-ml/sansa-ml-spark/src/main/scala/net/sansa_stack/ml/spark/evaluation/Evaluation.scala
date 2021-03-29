@@ -59,7 +59,7 @@ object Evaluation {
     val triplesDF = NTripleReader
       .load(
         spark,
-        inputPath,
+        inputPath2,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
@@ -72,8 +72,8 @@ object Evaluation {
     /* val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
       .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB") */
     val sampler = new SimilaritySampler()
-    // val target: DataFrame = sampler.setMode("rand").setSeed(20).transform(triplesDF)
-    val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
+    val target: DataFrame = sampler.setMode("rand").setSeed(20).transform(triplesDF)
+    // val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
 
     target.show(false)
 
