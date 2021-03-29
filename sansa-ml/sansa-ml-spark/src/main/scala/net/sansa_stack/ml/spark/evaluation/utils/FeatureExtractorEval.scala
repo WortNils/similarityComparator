@@ -155,7 +155,12 @@ class FeatureExtractorEval extends Transformer {
         // val info = target.join(count, count("_1") == target("_1"), "left")
         info
       case "tvers" =>
-        val filteredFeaturesDataFrame = rawFeatures.select(rawFeatures("uri") === _target("uri"))
+        val filteredFeaturesDataFrame = _target
+          .join(rawFeatures, rawFeatures("_1") === _target("uri"))
+          .drop("_1")
+          .groupBy("uri")
+          .agg(collect_list("_2"))
+          .withColumnRenamed("collect_list(_2)", "extractedFeatures")
         val cvModel: CountVectorizerModel = new CountVectorizer()
           .setInputCol("extractedFeatures")
           .setOutputCol("vectorizedFeatures")

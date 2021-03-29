@@ -11,10 +11,11 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
  */
 class SimilaritySampler extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("rand", "cross", "crossFull", "crossOld")
+  private val _availableModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
   private var _mode: String = "cross"
   private val _outputCols: Array[String] = Array("entityA", "entityB")
   private var _seed: Long = 10
+  private var _limit: Int = 1
 
 
   /**
@@ -34,12 +35,26 @@ class SimilaritySampler extends Transformer {
 
   /**
    * This method changes the seed to be used for randomized samplings
-   * @param mode a Long specifying the random seed
+   * @param seed a Long specifying the random seed
    * @return returns the FeatureExtractor
    */
   def setSeed(seed: Long): this.type = {
     if (seed > 0) {
       _seed = seed
+      this
+    } else {
+      throw new Exception("The specified amount was not negative.")
+    }
+  }
+
+  /**
+   * This method changes the amount of rows to take in limit mode
+   * @param limit an Int specifiyng the amount of rows to take
+   * @return returns the FeatureExtractor
+   */
+  def setLimit(limit: Int): this.type = {
+    if (limit > 0) {
+      _limit = limit
       this
     } else {
       throw new Exception("The specified amount was not negative.")
@@ -60,8 +75,8 @@ class SimilaritySampler extends Transformer {
       .withColumnRenamed("value", "entityA")
 
     // dirty way to remove literals
-    val raw = rawLit.where(rawLit("entityA").contains("http://"))
-    // val raw = rawLit
+    // val raw = rawLit.where(rawLit("entityA").contains("http://"))
+    val raw = rawLit
 
     val rawDF: DataFrame = _mode match {
       case "cross" | "sparql" =>
@@ -80,8 +95,9 @@ class SimilaritySampler extends Transformer {
         val tempDf = rawt.crossJoin(rawt.withColumnRenamed("entityA", "entityB"))
         tempDf.where(tempDf("entityA") >= tempDf("entityB"))
       case "limit" =>
-        // take the first n elements of the dataset
-        raw
+        val tempDf: DataFrame = raw.limit(_limit)
+        val retDf: DataFrame = tempDf.crossJoin(tempDf.withColumnRenamed("entityA", "entityB"))
+        retDf.where(retDf("entityA") >= retDf("entityB"))
       case "sparql" =>
         // sample according to a sparql query
         raw

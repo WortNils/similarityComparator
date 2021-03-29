@@ -14,7 +14,6 @@ import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
-import net.sansa_stack.ml.spark.similarity.similarityEstimationModels.TverskyModel
 
 object Evaluation {
   def main(args: Array[String]): Unit = {
@@ -59,7 +58,7 @@ object Evaluation {
     val triplesDF = NTripleReader
       .load(
         spark,
-        inputPath2,
+        inputPath,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
@@ -72,11 +71,12 @@ object Evaluation {
     /* val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
       .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB") */
     val sampler = new SimilaritySampler()
-    val target: DataFrame = sampler.setMode("rand").setSeed(20).transform(triplesDF)
+    val target: DataFrame = sampler.setMode("limit").setLimit(10).transform(triplesDF)
     // val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
 
     target.show(false)
 
+    /*
     val resnik = new ResnikModel()
     val result = resnik.setTarget(target)
       .setDepth(5)
@@ -88,6 +88,12 @@ object Evaluation {
       .setDepth(5)
       .transform(triplesDF)
     result2.show(false)
+    */
+
+    val tversky = new TverskyModel()
+    val result3 = tversky.setDepth(5).setTarget(target)
+      .transform(triplesDF)
+    result3.show(false)
 
 
     /*

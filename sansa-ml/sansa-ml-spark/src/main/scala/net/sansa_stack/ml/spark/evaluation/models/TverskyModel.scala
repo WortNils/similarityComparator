@@ -36,13 +36,20 @@ class TverskyModel extends Transformer {
   val estimatorName: String = "TverskySimilarityEstimator"
   val estimatorMeasureType: String = "similarity"
 
-  protected val tversky = udf((a: Vector, b: Vector, alpha: Double, betha: Double) => {
+  protected val tversky = udf((a: Vector, b: Vector, alpha: Double, beta: Double) => {
+    // Timekeeping
+    val t2 = System.nanoTime()
+
     val featureIndicesA = a.toSparse.indices
     val featureIndicesB = b.toSparse.indices
     val fSetA = featureIndicesA.toSet
     val fSetB = featureIndicesB.toSet
     if (fSetA.union(fSetB) == 0) {
-      0.0
+      // Timekeeping
+      val t3 = System.nanoTime()
+      val t_diff = (t_net + t3 - t2)/1000000000
+
+      (0.0, t_diff)
     }
     else {
       val tversky: Double = (
@@ -50,10 +57,14 @@ class TverskyModel extends Transformer {
           (
             (fSetA.intersect(fSetB).size.toDouble)
               +  (alpha * fSetA.diff(fSetB).size.toDouble)
-              + (betha * fSetB.diff(fSetA).size.toDouble)
+              + (beta * fSetB.diff(fSetA).size.toDouble)
             )
         )
-      tversky
+
+      // Timekeeping
+      val t3 = System.nanoTime()
+      val t_diff = (t_net + t3 - t2)/1000000000
+      (tversky, t_diff)
     }
   })
 
@@ -133,19 +144,20 @@ class TverskyModel extends Transformer {
     val t0 = System.nanoTime()
 
     // parent calculation
+    val tempDf = _target.drop("entityA")
+      .withColumnRenamed("entityB", "uri")
+      .union(_target.drop("entityB")
+        .withColumnRenamed("entityA", "uri"))
+      .distinct()
     val featureExtractorModel = new FeatureExtractorEval()
       .setMode("tvers").setDepth(_depth)
-      .setTarget(_target.drop("entityA")
-        .withColumnRenamed("entityB", "uri")
-        .union(_target.drop("entityB")
-          .withColumnRenamed("entityA", "uri"))
-        .distinct())
+      .setTarget(tempDf)
     val features = featureExtractorModel
       .transform(dataset)
 
-    val target = _target.join(features, _target("entityA") === features("entity"))
+    val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
       .withColumnRenamed("vectorizedFeatures", "featuresA")
-      .join(features, _target("entityB") === features("entity"))
+      .join(features, _target("entityB") === features("uri")).drop("uri")
       .withColumnRenamed("vectorizedFeatures", "featuresB")
 
     // timekeeping
