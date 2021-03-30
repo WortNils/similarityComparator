@@ -75,8 +75,8 @@ class SimilaritySampler extends Transformer {
       .withColumnRenamed("value", "entityA")
 
     // dirty way to remove literals
-    // val raw = rawLit.where(rawLit("entityA").contains("http://"))
-    val raw = rawLit
+    val raw = rawLit.where(rawLit("entityA").contains("http://"))
+    // val raw = rawLit
 
     val rawDF: DataFrame = _mode match {
       case "cross" | "sparql" =>

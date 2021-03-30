@@ -129,7 +129,7 @@ class WuAndPalmerModel extends Transformer{
    * @return the Wu and Palmer model
    */
   def setDepth(depth: Int): this.type = {
-    if (depth > 1) {
+    if (depth > 0) {
       _depth = depth
       this
     }

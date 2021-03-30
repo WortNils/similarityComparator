@@ -90,7 +90,7 @@ class ResnikModel extends Transformer {
    * @return the Resnik model
    */
   def setDepth(depth: Int): this.type = {
-    if (depth > 1) {
+    if (depth > 0) {
       _depth = depth
       this
     }

@@ -58,7 +58,7 @@ object Evaluation {
     val triplesDF = NTripleReader
       .load(
         spark,
-        inputPath,
+        inputPath2,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
@@ -91,7 +91,7 @@ object Evaluation {
     */
 
     val tversky = new TverskyModel()
-    val result3 = tversky.setDepth(5).setTarget(target)
+    val result3 = tversky.setTarget(target)
       .transform(triplesDF)
     result3.show(false)
 
