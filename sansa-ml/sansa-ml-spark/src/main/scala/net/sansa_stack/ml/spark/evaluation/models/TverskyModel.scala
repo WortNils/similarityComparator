@@ -150,7 +150,7 @@ class TverskyModel extends Transformer {
         .withColumnRenamed("entityA", "uri"))
       .distinct()
     val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("tvers").setDepth(_depth)
+      .setMode("feat").setDepth(_depth)
       .setTarget(tempDf)
     val features = featureExtractorModel
       .transform(dataset)

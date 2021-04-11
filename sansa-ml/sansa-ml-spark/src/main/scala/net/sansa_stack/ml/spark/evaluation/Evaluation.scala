@@ -2,6 +2,7 @@ package net.sansa_stack.ml.spark.evaluation
 
 import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils._
+import net.sansa_stack.ml.spark.featureExtraction.SparqlFrame
 import net.sansa_stack.ml.spark.utils.{FeatureExtractorModel, SimilarityExperimentMetaGraphFactory}
 import net.sansa_stack.rdf.common.io.riot.error.{ErrorParseMode, WarningParseMode}
 import net.sansa_stack.rdf.spark.io._
@@ -37,24 +38,19 @@ object Evaluation {
     val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/wordnet.nt"
 
     // read in data as Data`Frame
-    /* val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
+    // val triplesrdd = spark.rdf(Lang.NTRIPLES)(inputPath).cache()
+    // val triplesDF: DataFrame = spark.rdf(Lang.NTRIPLES)(inputPath).toDF().cache()
 
-    triplesrdd.foreach(println(_))
-    triplesrdd.toDF().show(false) */
+    /*
+    val triplesDS = NTripleReader
+      .load(
+        spark,
+        inputPath2,
+        stopOnBadTerm = ErrorParseMode.SKIP,
+        stopOnWarnings = WarningParseMode.IGNORE)
+      .toDS().cache()
+     */
 
-    // val triplesDF: DataFrame = spark.rdf(Lang.NTRIPLES)(inputPath).toDF().cache() // Seq(("<a1>", "<ai>", "<m1>"), ("<m1>", "<pb>", "<p1>")).toDF()
-    /* val triplesRDD: RDD[org.apache.jena.graph.Triple] = NTripleReader.load(
-      spark,
-      inputPath,
-      stopOnBadTerm = ErrorParseMode.SKIP,
-      stopOnWarnings = WarningParseMode.IGNORE
-    ).cache() // .cache()
-
-    // triplesDS.take(10).foreach(println(_))
-    implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
-
-    val triplesDF = triplesRDD.as[Triple].toDF()
-    */
     val triplesDF = NTripleReader
       .load(
         spark,
@@ -62,6 +58,14 @@ object Evaluation {
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
+
+    /*
+    val _queryString = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"
+    val sparqlFrame = new SparqlFrame()
+      .setSparqlQuery(_queryString)
+    val res = sparqlFrame.transform(triplesDF)
+    res.show(false)
+     */
 
     triplesDF.show(false)
     println(triplesDF.count())
@@ -76,13 +80,14 @@ object Evaluation {
 
     target.show(false)
 
-    /*
+
     val resnik = new ResnikModel()
     val result = resnik.setTarget(target)
       .setDepth(5)
       .transform(triplesDF)
     result.show(false)
 
+    /*
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)
       .setDepth(5)

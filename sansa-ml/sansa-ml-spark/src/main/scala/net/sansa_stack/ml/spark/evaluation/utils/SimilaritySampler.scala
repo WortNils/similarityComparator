@@ -1,5 +1,6 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
+import net.sansa_stack.ml.spark.featureExtraction.SparqlFrame
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.functions.monotonicallyIncreasingId
@@ -69,7 +70,7 @@ class SimilaritySampler extends Transformer {
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
-    val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
+    val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
 
     val rawLit = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
       .withColumnRenamed("value", "entityA")
@@ -99,8 +100,11 @@ class SimilaritySampler extends Transformer {
         val retDf: DataFrame = tempDf.crossJoin(tempDf.withColumnRenamed("entityA", "entityB"))
         retDf.where(retDf("entityA") >= retDf("entityB"))
       case "sparql" =>
-        // sample according to a sparql query
-        raw
+        val _queryString = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"
+        val sparqlFrame = new SparqlFrame()
+          .setSparqlQuery(_queryString)
+        val res = sparqlFrame.transform(dataset)
+        res
     }
 
     rawDF
