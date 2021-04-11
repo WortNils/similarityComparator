@@ -17,7 +17,7 @@ import scala.util.control.Breaks._
  */
 class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("par", "par2", "ic", "root", "feat")
+  private val _availableModes = Array("par", "par2", "ic", "root", "feat", "path")
   private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
@@ -36,78 +36,66 @@ class FeatureExtractorEval extends Transformer {
   })
 
   protected val doubleBreadth = udf((a: String, b: String) => {
-    var Q_a = ArrayBuffer(String)
-    var Q_b = ArrayBuffer(String)
-
-    var marked_a = ArrayBuffer((String, Integer))
-    var marked_b = ArrayBuffer((String, Integer))
-
-    Q_a.append(a)
-    Q_b.append(b)
-
     var i: Int = 0
-    marked_a.append((a, i))
-    marked_b.append((b, i))
+
+    val Q_a = ArrayBuffer(a)
+    val Q_b = ArrayBuffer(b)
+
+    val marked_a = ArrayBuffer((a, i))
+    val marked_b = ArrayBuffer((b, i))
 
     var res = ""
 
     breakable {
       while (Q_a.nonEmpty || Q_b.nonEmpty) {
-        i += 1
+        i = i + 1
+
+        var node = ""
+        var node2 = ""
 
         // take first element of Queue a
-        val node = Q_a(0)
-        Q_a = Q_a.drop(1)
-
-        // take first element of Queue b
-        val node2 = Q_b(0)
-        Q_b = Q_b.drop(1)
-
-        // if node is marked break
-        if (marked_b.exists(y => {y._1 == node})) {
-          res = node
-          break
-        }
-        /*
-        marked_b.foreach(t => {
-          if (t._1 == node) {
+        if (Q_a.nonEmpty) {
+          node = Q_a(0)
+          Q_a.remove(0)
+          // if node is marked break
+          if (marked_b.exists(y => {y._1 == node})) {
             res = node
             break
           }
-        })
-        */
-
-        // if node2 is marked break
-        if (marked_b.exists(y => {y._1 == node})) {
-          res = node
-          break
         }
 
-        /*
-        marked_a.foreach(t => {
-          if (t._1 == node2) {
+        if (Q_b.nonEmpty) {
+          // take first element of Queue b
+          node2 = Q_b(0)
+          Q_b.remove(0)
+
+          // if node2 is marked break
+          if (marked_a.exists(y => {y._1 == node2})) {
             res = node2
             break
           }
-        })
-        */
+        }
 
         // append node and node2 children to the Queues
         _data.foreach(t => {
           if (t._1 == node) {
-            Q_a.append(t._2)
-            marked_a.append((t._2, i))
-
+            if (marked_a.exists(y => {y._1 == t._2})) {}
+            else {
+              Q_a.append(t._2)
+              marked_a.append((t._2, i))
+            }
           } else if (t._1 == node2) {
-            Q_b.append(t._2)
-            marked_b.append((t._2, i))
+            if (marked_b.exists(y => {y._1 == t._2})) {}
+            else {
+              Q_b.append(t._2)
+              marked_b.append((t._2, i))
+            }
           }
         })
       }
-      (res, 0.0)
+      (res, 0)
     }
-    (res, (marked_b(marked_b.indexWhere(t => {t._1 == res}))._2
-      + marked_a(marked_a.indexWhere(t => {t._1 == res}))._2).toDouble)
+    (res, (marked_b(marked_b.indexWhere(t => {t._1 == res}))._2 + marked_a(marked_a.indexWhere(t => {t._1 == res}))._2))
   })
 
   /**

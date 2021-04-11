@@ -18,12 +18,13 @@ import scala.collection.Map
 class WuAndPalmerModel extends Transformer{
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
-  private val _availableModes = Array("join", "path")
+  private val _availableModes = Array("join", "path", "breadth")
   private var _mode: String = "join"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
 
   private var _rootdist: Map[String, Int] = Map("ab" -> 2)
+  private var _rootdist2: Map[String, Double] = Map("ab" -> 2.0)
   private var _max: Long = 0
 
   val estimatorName: String = "WuAndPalmerSimilarityEstimator"
@@ -95,7 +96,7 @@ class WuAndPalmerModel extends Transformer{
   /**
    * udf to set Wu and Palmer similarity
    */
-  protected val wuandpalmerbreadth = udf((m: Double, parent: String) => {
+  protected val wuandpalmerbreadth = udf((m: Int, parent: String) => {
     // Timekeeping
     val t2 = System.nanoTime()
 
@@ -109,7 +110,7 @@ class WuAndPalmerModel extends Transformer{
       case f: NoSuchElementException => n(0) = _max.toInt
     }
 
-    val wupalm = (2 * n(0).toDouble) / (m + 2 * n(0).toDouble)
+    val wupalm = (2 * n(0).toDouble) / (m.toDouble + 2 * n(0).toDouble)
 
     // Timekeeping
     val t3 = System.nanoTime()
@@ -192,7 +193,7 @@ class WuAndPalmerModel extends Transformer{
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + "is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
     }
   }
 
@@ -286,14 +287,18 @@ class WuAndPalmerModel extends Transformer{
       val target = _parents.withColumn("dist", fromTuple(col("pathdist")))
         .withColumn("parent", fromTuple_1(col("pathdist")))
 
-      val rents = _parents.withColumn("uri", fromTuple_1(col("pathdist")))
+      val renter = _parents.withColumn("uri", fromTuple_1(col("pathdist")))
         .drop("entityA", "entityB", "pathdist")
         .distinct()
+
+      val rents = renter.where(renter("uri") =!= "")
 
       val rooter = featureExtractorModel.setMode("par2").setDepth(_depth).setTarget(rents).transform(dataset)
       val roots = rooter.groupBy("entity")
         .agg(max(rooter("depth")))
         .withColumnRenamed("max(depth)", "rootdist")
+
+      roots.show(false)
 
       _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
       _max = dataset.count()
@@ -302,8 +307,8 @@ class WuAndPalmerModel extends Transformer{
       val t1 = System.nanoTime()
       t_net = t1 - t0
 
-      val result = _parents.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
-        .drop("featuresA", "featuresB")
+      val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
+        // .drop("pathdist", "dist", "parent")
       result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
         .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
         .drop("WuAndPalmerTemp")
