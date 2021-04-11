@@ -5,7 +5,7 @@
     <parent>
         <groupId>net.sansa-stack</groupId>
         <artifactId>sansa-parent_2.12</artifactId>
-        <version>0.7.2-SNAPSHOT</version>
+        <version>0.8.0-RC1</version>
     </parent>
 
     <artifactId>sansa-stack-spark_2.12</artifactId>
@@ -14,6 +14,12 @@
     <name>SANSA Stack - Spark</name>
 
     <dependencies>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>sansa-spark-cli_${scala.binary.version}</artifactId>
+        </dependency>
+
 
         <!-- RDF Layer -->
         <dependency>
@@ -49,6 +55,19 @@
                     <artifactId>scopt_2.11</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- Added cause if not there failing when play around with fat jar in databricks -->
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-core</artifactId>
+            <version>2.3.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-impl</artifactId>
+            <version>2.3.0.1</version>
         </dependency>
 
     </dependencies>
@@ -116,8 +135,8 @@
                                             <exclude>javax.servlet:servlet-api</exclude>
                                             <exclude>javax.validation:validation-api</exclude>
                                             <exclude>javax.ws.rs:javax.ws.rs-api</exclude>
-                                            <exclude>javax.xml.bind:jaxb-api</exclude>
-                                            <exclude>javax.xml.stream:stax-api</exclude>
+                                            <!-- <exclude>javax.xml.bind:jaxb-api</exclude> -->
+                                            <!-- <exclude>javax.xml.stream:stax-api</exclude> -->
                                             <exclude>jdk.tools:jdk.tools</exclude>
                                             <exclude>net.java.dev.jets3t:jets3t</exclude>
                                             <exclude>net.jpountz.lz4:lz4</exclude>

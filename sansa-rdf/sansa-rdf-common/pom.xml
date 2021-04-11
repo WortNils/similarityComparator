@@ -3,7 +3,7 @@
 	<parent>
 		<artifactId>sansa-rdf-parent_2.12</artifactId>
 		<groupId>net.sansa-stack</groupId>
-		<version>0.7.2-SNAPSHOT</version>
+		<version>0.8.0-RC1</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>sansa-rdf-common_2.12</artifactId>
@@ -17,6 +17,16 @@
 
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
+			<artifactId>sansa-kryo-jena</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>net.sansa-stack</groupId>
+			<artifactId>sansa-hadoop-jena</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-resource-testdata</artifactId>
 			<scope>test</scope>
 		</dependency>
@@ -25,10 +35,12 @@
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 		</dependency>
+
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-reflect</artifactId>
 		</dependency>
+
 		<dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_${scala.binary.version}</artifactId>
@@ -57,6 +69,11 @@
 		<dependency>
 			<groupId>org.aksw.jena-sparql-api</groupId>
 			<artifactId>jena-sparql-api-io-core</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.aksw.jena-sparql-api</groupId>
+			<artifactId>jena-sparql-api-io-hdt</artifactId>
 		</dependency>
 
 		<dependency>
@@ -116,6 +133,22 @@
 			<groupId>org.aksw.r2rml</groupId>
 			<artifactId>r2rml-jena-plugin</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.aksw.r2rml</groupId>
+			<artifactId>r2rml-jena-sql-transforms</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.jsqlparser</groupId>
+			<artifactId>jsqlparser</artifactId>
+		</dependency>
+
+        <dependency>
+            <groupId>net.sansa-stack</groupId>
+            <artifactId>sansa-test-resources_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
 
 	</dependencies>
 

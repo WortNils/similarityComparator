@@ -1,14 +1,15 @@
 package net.sansa_stack.rdf.spark.model.rdd
 
-import java.util.Objects
+import net.sansa_stack.rdf.spark.utils.SparkSessionUtils
 
-import org.aksw.jena_sparql_api.utils.IteratorResultSetBinding
-import org.apache.jena.graph.{Graph, GraphUtil}
+import java.util.Objects
+import org.aksw.jena_sparql_api.utils.{DatasetGraphUtils, IteratorResultSetBinding}
+import org.apache.jena.graph.Triple
 import org.apache.jena.query._
-import org.apache.jena.rdf.model.{Model, ModelFactory, Resource}
+import org.apache.jena.rdf.model.{Model, Resource}
+import org.apache.jena.sparql.core.Quad
 import org.apache.jena.sparql.engine.binding.Binding
-import org.apache.jena.sparql.util.DatasetUtils
-import org.apache.jena.sparql.util.compose.DatasetLib
+import org.apache.spark.HashPartitioner
 import org.apache.spark.rdd.RDD
 
 import scala.collection.JavaConverters._
@@ -18,8 +19,30 @@ import scala.collection.JavaConverters._
  */
 object RddOfDatasetOps {
 
-  @inline def naturalResources(rddOfDatasets: RDD[_ <: Dataset]): RDD[Resource] = {
+  def naturalResources(rddOfDatasets: RDD[_ <: Dataset]): RDD[Resource] = {
     rddOfDatasets.flatMap(JenaDatasetOps.naturalResources)
+  }
+
+  /**
+   * Flat map each dataset to its set of quads using its .find() method.
+   * Includes triples in the default graph.
+   */
+  def flatMapToQuads(rddOfDatasets: RDD[_ <: Dataset]): RDD[Quad] = {
+    rddOfDatasets.flatMap(_.asDatasetGraph().find.asScala)
+  }
+
+  /**
+   * Flat map all quads in the dataset - in both named graphs and the default graph -
+   * to triples
+   */
+  def flatMapToTriples(rddOfDatasets: RDD[_ <: Dataset]): RDD[Triple] = {
+    flatMapToQuads(rddOfDatasets).map(_.asTriple)
+  }
+
+  def toNamedModels(rdd: RDD[_ <: Dataset]): RDD[(String, Model)] = {
+    // TODO Add a flag to include the default graph under a certain name such as Quad.defaultGraph
+    rdd
+      .flatMap(ds => ds.listNames.asScala.map(iri => (iri, ds.getNamedModel(iri))))
   }
 
   /**
@@ -29,34 +52,35 @@ object RddOfDatasetOps {
    *
    * Ignores default graphs which get lost.
    */
-  def groupNamedGraphsByGraphIri(rdd: RDD[_ <: Dataset]): RDD[Dataset] = {
+  def groupNamedGraphsByGraphIri(
+                                  rdd: RDD[_ <: Dataset],
+                                  distinct: Boolean = true,
+                                  sortGraphsByIri: Boolean = false,
+                                  numPartitions: Int = 0): RDD[Dataset] = {
     import collection.JavaConverters._
     // Note: Model is usually ModelCom so we get out-of-the-box serialization
     // If we used Graph we'd have to deal with a lot more variation
-    val graphNameAndModel: RDD[(String, Model)] = rdd
-      .flatMap(ds => ds.listNames.asScala.map(iri => (iri, ds.getNamedModel(iri))))
-
-    val result: RDD[Dataset] = graphNameAndModel
-      .reduceByKey((g1, g2) => { g1.add(g2); g1 })
-      .sortByKey()
-      .map({ case (graphName, model) =>
-        val r = DatasetFactory.create
-        r.addNamedModel(graphName, model)
-        r
-      })
+    val step1 = toNamedModels(rdd)
+    val step2 = RddOfNamedModelOps.groupNamedModelsByGraphIri(step1, distinct, sortGraphsByIri, numPartitions)
+    val result = RddOfNamedModelOps.mapToDatasets(step2)
 
     result
   }
 
-  /* run <b>a single</b> query over <b>each whole partition</b> (i.e. the query affects all graphs in the partition) */
+  /**
+   * Deprecated due to scalability issues w.r.t. RAM when loading whole partitions into RAM in parallel with lotss of cores;
+   * use flatMapWithSparql
+   *
+   * Run <b>a single</b> query over <b>each whole partition</b> (i.e. the query affects all graphs in the partition)
+   */
+  @deprecated
   def mapPartitionsWithSparql(rdd: RDD[_ <: Dataset], query: Query): RDD[Binding] = {
     // def flatMapQuery(query: Query): RDD[Dataset] =
     val queryBc = rdd.context.broadcast(query)
 
     Objects.requireNonNull(query)
 
-    rdd.mapPartitions(datasets =>
-    {
+    rdd.mapPartitions(datasets => {
       val all = DatasetFactory.create
       datasets.foreach(ds => ds.asDatasetGraph.find
         .forEachRemaining(x => all.asDatasetGraph().add(x)))
@@ -78,9 +102,9 @@ object RddOfDatasetOps {
   }
 
   /**
-   * Run a select query on each individual dataset in the RDD
+   * Run a select query on each individual dataset in the RDD and flat map it to the set of bindings
    */
-  def selectWithSparql(rdd: RDD[_ <: Dataset], query: Query): RDD[Binding] = {
+  def flatMapWithSparqlSelect(rdd: RDD[_ <: Dataset], query: Query): RDD[Binding] = {
     val queryBc = rdd.context.broadcast(query)
 
     Objects.requireNonNull(query)
@@ -100,12 +124,42 @@ object RddOfDatasetOps {
     })
   }
 
-  @inline def flatMapWithSparql(rddOfDatasets: RDD[_ <: Dataset], queryStr: String): RDD[Dataset] = {
+
+  /**
+   * Run a select query on each partition (merges all datasets in a partition and thus may remove duplicates) dataset in the RDD
+   */
+  def selectWithSparqlPerPartition(rdd: RDD[_ <: Dataset], query: Query): RDD[Binding] = {
+    val queryBc = rdd.context.broadcast(query)
+
+    Objects.requireNonNull(query)
+
+    rdd.mapPartitions(it => {
+      val dataset = DatasetFactory.create()
+      it.foreach(item => DatasetGraphUtils.addAll(dataset.asDatasetGraph(), item.asDatasetGraph()))
+
+      val query = queryBc.value
+
+      val qe = QueryExecutionFactory.create(query, dataset)
+      var r: Seq[Binding] = null
+      try {
+        r = new IteratorResultSetBinding(qe.execSelect).asScala.toList
+      } finally {
+        qe.close()
+      }
+
+      r.iterator
+    })
+  }
+
+
+  def flatMapWithSparql(rddOfDatasets: RDD[_ <: Dataset], query: Query): RDD[Dataset] = {
     // def flatMapQuery(query: Query): RDD[Dataset] =
+    val queryBc = rddOfDatasets.context.broadcast(query)
+
     rddOfDatasets.flatMap(in => {
       // TODO I don't get why the Query object is not serializablbe even though
       // the registrator for it is loaded ... investigae...
-      val query = QueryFactory.create(queryStr, Syntax.syntaxARQ);
+      val query = queryBc.value// QueryFactory.create(queryStr, Syntax.syntaxARQ);
 
       val qe = QueryExecutionFactory.create(query, in)
       var r: Seq[Dataset] = null
@@ -120,6 +174,7 @@ object RddOfDatasetOps {
             ds.addNamedModel(name, model)
             ds
           })
+          .toList // Materialize as a list because of subsequent close
       } finally {
         qe.close()
       }
@@ -128,11 +183,12 @@ object RddOfDatasetOps {
     })
   }
 
-  @inline def filterWithSparql(rddOfDatasets: RDD[_ <: Dataset], queryStr: String, drop: Boolean): RDD[_ <: Dataset] = {
+  def filterWithSparql(rddOfDatasets: RDD[_ <: Dataset], query: Query, drop: Boolean): RDD[_ <: Dataset] = {
     // def flatMapQuery(query: Query): RDD[Dataset] =
+    val queryBc = rddOfDatasets.context.broadcast(query)
     rddOfDatasets.filter(in => {
       // TODO Make deserialization of query work
-      val rawQuery = QueryFactory.create(queryStr, Syntax.syntaxARQ)
+      val rawQuery = queryBc.value
       val query = RddOfRdfOpUtils.enforceQueryAskType(rawQuery)
 
       val qe = QueryExecutionFactory.create(query, in)

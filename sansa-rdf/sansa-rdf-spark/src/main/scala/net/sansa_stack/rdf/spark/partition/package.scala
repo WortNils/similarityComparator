@@ -4,10 +4,11 @@ import net.sansa_stack.rdf.common.partition.core.{RdfPartitionStateDefault, RdfP
 import net.sansa_stack.rdf.common.partition.r2rml.R2rmlUtils
 import net.sansa_stack.rdf.common.partition.utils.SQLUtils
 import net.sansa_stack.rdf.spark.mappings.R2rmlMappedSparkSession
-import net.sansa_stack.rdf.spark.partition.core.{RdfPartitionUtilsSpark, SparkTableGenerator}
+import net.sansa_stack.rdf.spark.partition.core.{BlankNodeStrategy, RdfPartitionUtilsSpark, SparkTableGenerator}
 import net.sansa_stack.rdf.spark.partition.semantic.SemanticRdfPartitionUtilsSpark
-import net.sansa_stack.rdf.spark.utils.Logging
-import org.aksw.sparqlify.core.sql.common.serialization.{SqlEscaper, SqlEscaperBacktick}
+import net.sansa_stack.rdf.spark.utils.{Logging, SparkSessionUtils}
+import org.aksw.commons.sql.codec.api.SqlCodec
+import org.aksw.commons.sql.codec.util.SqlCodecUtils
 import org.apache.jena.graph.Triple
 import org.apache.jena.rdf.model.ModelFactory
 import org.apache.spark.rdd.RDD
@@ -42,7 +43,7 @@ package object partition extends Logging {
      */
     def verticalPartition(partitioner: RdfPartitioner[RdfPartitionStateDefault],
                           explodeLanguageTags: Boolean = false,
-                          sqlEscaper: SqlEscaper = new SqlEscaperBacktick,
+                          sqlCodec: SqlCodec = SqlCodecUtils.createSqlCodecDefault(),
                           escapeIdentifiers: Boolean = false): R2rmlMappedSparkSession = {
       val partitioning: Map[RdfPartitionStateDefault, RDD[Row]] =
         RdfPartitionUtilsSpark.partitionGraph(rddOfTriples, partitioner)
@@ -50,13 +51,12 @@ package object partition extends Logging {
       val mappingsModel = ModelFactory.createDefaultModel
       // R2rmlUtils.createR2rmlMappings(partitioner, partitioning.keys.toSeq, model, explodeLanguageTags)
 
-      val sparkSession = SparkSession.builder.config(rddOfTriples.sparkContext.getConf).getOrCreate()
-
-
+      val sparkSession = SparkSessionUtils.getSessionFromRdd(rddOfTriples)
 
       // Create a table prefix for each partitioning of RDDs
       // TODO Encode partitioner hash into the name
-      val rddId = System.identityHashCode(rddOfTriples)
+      val rddSysHash = System.identityHashCode(rddOfTriples)
+      val rddId = if (rddSysHash < 0) "_" + -rddSysHash else "" + rddSysHash
       val tableNaming: RdfPartitionStateDefault => String =
         partitionState => "rdd" + rddId + "_" + SQLUtils.encodeTablename(SQLUtils.createDefaultTableName(partitionState))
 
@@ -72,10 +72,9 @@ package object partition extends Logging {
         partitioning.keySet.toSeq,
         tableNaming,
         database,
-        sqlEscaper,
+        sqlCodec,
         mappingsModel,
-        explodeLanguageTags,
-        escapeIdentifiers
+        explodeLanguageTags
       )
 
 //      partitioning.foreach { case(p, rdd) =>
@@ -97,9 +96,9 @@ package object partition extends Logging {
 //          escapeIdentifiers
 //        )
 //
-////        triplesMaps.foreach(tm =>
-////          RDFDataMgr.write(System.err, model, RDFFormat.TURTLE_PRETTY)
-////        )
+// //        triplesMaps.foreach(tm =>
+// //          RDFDataMgr.write(System.err, model, RDFFormat.TURTLE_PRETTY)
+// //        )
 //
 //        log.info(s"Partitioning: Created table ${tableName} with R2RML model of ${triplesMaps.size} triples maps")
 //        // val tableName = tableNaming.apply(p)
@@ -108,7 +107,16 @@ package object partition extends Logging {
 
 //      RDFDataMgr.write(System.out, model, RDFFormat.TURTLE_PRETTY)
 
-      new SparkTableGenerator(sparkSession, database).createAndRegisterSparkTables(partitioner, partitioning, tableNaming)
+      // TODO Refactor this method to return an object that gives access to the SparkTableGenerator
+      //   such that its settings can be post-processed
+
+      val targetDatabase = if (sparkSession.catalog.currentDatabase == "default") None
+        else Option(sparkSession.catalog.currentDatabase)
+
+      val useHive: Boolean = targetDatabase.isDefined
+
+      new SparkTableGenerator(sparkSession, targetDatabase, BlankNodeStrategy.Table, useHive)
+        .createAndRegisterSparkTables(partitioner, partitioning, tableNaming)
 
       R2rmlMappedSparkSession(sparkSession, mappingsModel)
     }

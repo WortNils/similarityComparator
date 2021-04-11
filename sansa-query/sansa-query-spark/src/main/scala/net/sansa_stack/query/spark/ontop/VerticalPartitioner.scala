@@ -3,9 +3,12 @@ package net.sansa_stack.query.spark.ontop
 import java.io.{File, FileOutputStream}
 import java.net.URI
 import java.nio.file.Paths
-
+import net.sansa_stack.rdf.common.partition.core.{RdfPartitionStateDefault, RdfPartitioner, RdfPartitionerComplex, TermType}
+import net.sansa_stack.rdf.common.partition.r2rml.R2rmlUtils
+import net.sansa_stack.rdf.common.partition.utils.SQLUtils
+import net.sansa_stack.rdf.spark.partition.core.{BlankNodeStrategy, RdfPartitionUtilsSpark, SparkTableGenerator}
+import org.aksw.commons.sql.codec.util.SqlCodecUtils
 import org.aksw.r2rml.jena.vocab.RR
-import org.aksw.sparqlify.core.sql.common.serialization.{SqlEscaperBacktick, SqlEscaperDoubleQuote}
 import org.apache.jena.rdf.model.ModelFactory
 import org.apache.jena.sys.JenaSystem
 import org.apache.jena.vocabulary.{RDF, XSD}
@@ -17,11 +20,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row, SparkSession, SaveMode => TableSaveMode}
 import org.semanticweb.owlapi.apibinding.OWLManager
 import org.semanticweb.owlapi.model.{HasDataPropertiesInSignature, HasObjectPropertiesInSignature, IRI}
-
-import net.sansa_stack.rdf.common.partition.core.{RdfPartitionStateDefault, RdfPartitioner, RdfPartitionerComplex, TermType}
-import net.sansa_stack.rdf.common.partition.r2rml.R2rmlUtils
-import net.sansa_stack.rdf.common.partition.utils.SQLUtils
-import net.sansa_stack.rdf.spark.partition.core.{BlankNodeStrategy, RdfPartitionUtilsSpark, SparkTableGenerator}
 
 
 /**
@@ -46,6 +44,7 @@ object VerticalPartitioner {
                      computeStatistics: Boolean = true,
                      databaseName: String = "Default",
                      dropDatabase: Boolean = false,
+                     mappingsFile: Option[String] = None,
                      saveIgnore: Boolean = false,
                      saveOverwrite: Boolean = false,
                      saveAppend: Boolean = false,
@@ -53,72 +52,68 @@ object VerticalPartitioner {
                      partitioningThreshold: Int = 100,
                      mode: String = "partitioner")
 
-  import scopt.OParser
-  val builder = OParser.builder[Config]
-  val parser = {
-    import builder._
-    OParser.sequence(
-      programName("vpartitioner"),
-      head("vertical partitioner", "0.1"),
+  val parser = new scopt.OptionParser[Config]("VerticalPartitioner") {
+      head("vertical partitioner", "0.1")
       opt[URI]('i', "input")
         .required()
         .action((x, c) => c.copy(inputPath = x))
-        .text("path to input data"),
+        .text("path to input data")
       opt[URI]('o', "output")
         .required()
         .action((x, c) => c.copy(outputPath = x))
-        .text("path to output directory"),
+        .text("path to output directory")
       opt[URI]('s', "schema")
         .optional()
         .action((x, c) => c.copy(schemaPath = x))
-        .text("an optional file containing the OWL schema to process only object and data properties"),
+        .text("an optional file containing the OWL schema to process only object and data properties")
       opt[BlankNodeStrategy.Value]('b', "blanknode-strategy")
         .optional()
         .action((x, c) => c.copy(blankNodeStrategy = x))
-        .text("how blank nodes are handled during partitioning (TABLE, COLUMN)"),
+        .text("how blank nodes are handled during partitioning (TABLE, COLUMN)")
       opt[Boolean]('s', "stats")
         .optional()
         .action((x, c) => c.copy(computeStatistics = x))
-        .text("compute statistics for the Parquet tables"),
+        .text("compute statistics for the Parquet tables")
       opt[String]("database")
         .optional()
         .abbr("db")
         .action((x, c) => c.copy(databaseName = x))
-        .text("the database name registered in Spark metadata. Default: 'Default'"),
+        .text("the database name registered in Spark metadata. Default: 'Default'")
       opt[Unit]("drop-db")
         .optional()
         .action((_, c) => c.copy(dropDatabase = true))
-        .text("if to drop an existing database"),
+        .text("if to drop an existing database")
+      opt[String]("mappings-file")
+        .optional()
+        .action((x, c) => c.copy(mappingsFile = Option(x)))
+        .text("path to the generated R2RML mappings file")
       opt[Unit]("save-ignore")
         .optional()
         .action((_, c) => c.copy(saveIgnore = true))
-        .text("if data/table already exists, the save operation is expected to not save the contents of the DataFrame and to not change the existing data"),
+        .text("if data/table already exists, the save operation is expected to not save the contents of the DataFrame and to not change the existing data")
       opt[Unit]("save-overwrite")
         .optional()
         .action((_, c) => c.copy(saveOverwrite = true))
-        .text("if data/table already exists, existing data is expected to be overwritten"),
+        .text("if data/table already exists, existing data is expected to be overwritten")
       opt[Unit]("save-append")
         .optional()
         .action((_, c) => c.copy(saveAppend = true))
-        .text("if data/table already exists, contents of the DataFrame are expected to be appended to existing data"),
+        .text("if data/table already exists, contents of the DataFrame are expected to be appended to existing data")
       opt[Unit]("partitioning")
         .optional()
         .action((_, c) => c.copy(usePartitioning = true))
-        .text("if partitioning of subject/object columns should be computed"),
+        .text("if partitioning of subject/object columns should be computed")
       opt[Int]("partitioning-threshold")
         .optional()
         .action((x, c) => c.copy(partitioningThreshold = x))
-        .text("the max. number of values of subject/object values for which partitioning of the table is considered"),
+        .text("the max. number of values of subject/object values for which partitioning of the table is considered")
       cmd("show")
         .action((_, c) => c.copy(mode = "show-tables"))
         .text("update is a command.")
-    )
   }
 
   def main(args: Array[String]): Unit = {
-    JenaSystem.init()
-
-    OParser.parse(parser, args, Config()) match {
+    parser.parse(args, Config()) match {
       case Some(config) =>
         if (config.mode == "partitioner") {
           run(config)
@@ -133,7 +128,7 @@ object VerticalPartitioner {
 
   }
 
-  val sqlEscaper = new SqlEscaperBacktick()
+  val sqlCodec = SqlCodecUtils.createSqlCodecForApacheSpark
 
 
 
@@ -154,7 +149,7 @@ object VerticalPartitioner {
       .enableHiveSupport()
       .getOrCreate()
 
-    spark.sql(s"use ${sqlEscaper.escapeIdentifier(databaseName)}")
+    spark.sql(s"use ${sqlCodec.forSchemaName.encode(databaseName)}")
     spark.sql("show tables").show(1000, false)
     spark.sql("show tables").select("tableName").collect().foreach(
       row => {
@@ -168,9 +163,9 @@ object VerticalPartitioner {
 
   private def run(config: Config): Unit = {
 
-    import scala.collection.JavaConverters._
-
     import net.sansa_stack.rdf.spark.io._
+
+    import scala.collection.JavaConverters._
 
     val spark = SparkSession.builder
       //      .master("local")
@@ -222,7 +217,7 @@ object VerticalPartitioner {
     println(s"#partitions: ${partitions.size}")
     println(partitions.mkString("\n"))
 
-    val dbName = sqlEscaper.escapeIdentifier(config.databaseName)
+    val dbName = sqlCodec.forSchemaName.encode(config.databaseName)
 
     // we drop the database if forced
     if (config.dropDatabase) spark.sql(s"DROP DATABASE IF EXISTS $dbName CASCADE")
@@ -268,7 +263,7 @@ object VerticalPartitioner {
     partitionToTableName.foreach { case (p, tableName) =>
 
       try {
-        val df = spark.table(sqlEscaper.escapeTableName(tableName))
+        val df = spark.table(sqlCodec.forTableName.encode(tableName))
         var writer: DataFrameWriter[Row] = df.write
 
         // rdf:type partition will be partitioned by types
@@ -317,20 +312,20 @@ object VerticalPartitioner {
     }
 
     // write the partitioning metadata as R2RML mappings to disk
-    val path = Paths.get(s"/tmp/${config.databaseName}-r2rml-mappings.ttl")
-    println(s"writing R2RML mapping model to $path")
+    // we use double quotes as escape chars for the SQL identifiers
+    val path = config.mappingsFile.getOrElse(Paths.get(config.outputPath.toString, s"${config.databaseName}-r2rml-mappings.ttl").toAbsolutePath.toString)
     val model = ModelFactory.createDefaultModel()
     R2rmlUtils.createR2rmlMappings(
       partitioner,
       partitions.keySet.toSeq,
       tableNameFn,
       Option(config.databaseName),
-      new SqlEscaperDoubleQuote(),
+      SqlCodecUtils.createSqlCodecDefault(),
       model,
-      explodeLanguageTags = true,
-      escapeIdentifiers = true)
+      explodeLanguageTags = true)
 
-    model.write(new FileOutputStream(path.toFile), "TURTLE", RR.uri)
+    model.write(new FileOutputStream(new File(path)), "TURTLE", RR.uri)
+    println(s"R2RML mapping model written to $path")
     spark.stop()
   }
 
@@ -355,7 +350,7 @@ object VerticalPartitioner {
                                path: String,
                                usePartitioning: Boolean,
                                partitioningThreshold: Int): Unit = {
-    val tableName = sqlEscaper.escapeTableName(SQLUtils.createDefaultTableName(p))
+    val tableName = sqlCodec.forTableName.encode(SQLUtils.createDefaultTableName(p))
     // val scalaSchema = p.layout.schema
     val scalaSchema = partitioner.determineLayout(p).schema
     val sparkSchema = ScalaReflection.schemaFor(scalaSchema).dataType.asInstanceOf[StructType]
