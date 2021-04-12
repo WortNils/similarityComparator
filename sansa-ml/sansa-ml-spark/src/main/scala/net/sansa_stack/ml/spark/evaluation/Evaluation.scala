@@ -92,11 +92,23 @@ object Evaluation {
       .transform(triplesDF)
     result2.show(false)
 
+    val result4 = wuandpalmer.setTarget(target)
+      .setDepth(5).setMode("join")
+      .transform(triplesDF)
+    result4.show(false)
+
     val tversky = new TverskyModel()
     val result3 = tversky.setTarget(target)
       .transform(triplesDF)
     result3.show(false)
 
+    result.filter((result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
+
+    result2.filter((result2("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result2("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result2("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result2("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
+
+    result4.filter((result4("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result4("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result4("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result4("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
+
+    result3.filter((result3("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result3("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result3("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result3("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
 
     /*
     val asGraph = new SimilarityExperimentMetaGraphFactory()

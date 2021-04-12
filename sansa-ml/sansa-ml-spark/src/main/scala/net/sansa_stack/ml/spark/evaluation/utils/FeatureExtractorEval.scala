@@ -46,6 +46,9 @@ class FeatureExtractorEval extends Transformer {
 
     var res = ""
 
+    marked_a.append(("", -1))
+    marked_b.append(("", -1))
+
     breakable {
       while (Q_a.nonEmpty || Q_b.nonEmpty) {
         i = i + 1
@@ -53,8 +56,8 @@ class FeatureExtractorEval extends Transformer {
         var node = ""
         var node2 = ""
 
-        // take first element of Queue a
         if (Q_a.nonEmpty) {
+          // take first element of Queue a
           node = Q_a(0)
           Q_a.remove(0)
           // if node is marked break
@@ -93,8 +96,16 @@ class FeatureExtractorEval extends Transformer {
           }
         })
       }
-      (res, 0)
+      (res, -1)
     }
+    /*
+    print("result: ")
+    println(res)
+    print("marked a: ")
+    println(marked_a)
+    print("marked b: ")
+    println(marked_b)
+     */
     (res, (marked_b(marked_b.indexWhere(t => {t._1 == res}))._2 + marked_a(marked_a.indexWhere(t => {t._1 == res}))._2))
   })
 
@@ -180,7 +191,7 @@ class FeatureExtractorEval extends Transformer {
           new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R")).distinct()
           val temp: Long = new_parents.count()
-          println(temp)
+          // println(temp)
 
           // if the length of the dataframe is the same as in the last iteration break the loop
           if (temp == token) {

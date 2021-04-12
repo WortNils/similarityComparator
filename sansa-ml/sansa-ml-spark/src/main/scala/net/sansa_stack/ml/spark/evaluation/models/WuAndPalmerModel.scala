@@ -110,7 +110,11 @@ class WuAndPalmerModel extends Transformer{
       case f: NoSuchElementException => n(0) = _max.toInt
     }
 
-    val wupalm = (2 * n(0).toDouble) / (m.toDouble + 2 * n(0).toDouble)
+    var wupalm: Double = 0
+
+    if (m >= 0) {
+      wupalm = (2 * n(0)).toDouble / (m.toDouble + (2 * n(0)).toDouble)
+    }
 
     // Timekeeping
     val t3 = System.nanoTime()
@@ -293,7 +297,7 @@ class WuAndPalmerModel extends Transformer{
 
       val rents = renter.where(renter("uri") =!= "")
 
-      val rooter = featureExtractorModel.setMode("par2").setDepth(_depth).setTarget(rents).transform(dataset)
+      val rooter = featureExtractorModel.setMode("root").setDepth(_depth).setTarget(rents).transform(dataset)
       val roots = rooter.groupBy("entity")
         .agg(max(rooter("depth")))
         .withColumnRenamed("max(depth)", "rootdist")
@@ -308,7 +312,7 @@ class WuAndPalmerModel extends Transformer{
       t_net = t1 - t0
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
-        // .drop("pathdist", "dist", "parent")
+         .drop("pathdist", "dist", "parent")
       result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
         .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
         .drop("WuAndPalmerTemp")
