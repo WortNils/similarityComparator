@@ -14,6 +14,10 @@ class SimilaritySampler extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
   private var _mode: String = "cross"
+
+  private val _availableLiteralRemoval = Array("none", "http")
+  private var _litMode = "none"
+
   private val _outputCols: Array[String] = Array("entityA", "entityB")
   private var _seed: Long = 10
   private var _limit: Int = 1
@@ -51,7 +55,7 @@ class SimilaritySampler extends Transformer {
   /**
    * This method changes the amount of rows to take in limit mode
    * @param limit an Int specifiyng the amount of rows to take
-   * @return returns the FeatureExtractor
+   * @return returns the SimilaritySampler
    */
   def setLimit(limit: Int): this.type = {
     if (limit > 0) {
@@ -59,6 +63,21 @@ class SimilaritySampler extends Transformer {
       this
     } else {
       throw new Exception("The specified amount was not negative.")
+    }
+  }
+
+  /**
+   * This method sets the way in which literals are removed
+   * @param litMode a String specifying the literal removal mode
+   * @return returns the SimilaritySampler
+   */
+  def setLiteralRemoval(litMode: String): this.type = {
+    if (_availableLiteralRemoval.contains(litMode)) {
+      _litMode = litMode
+      this
+    }
+    else {
+      throw new Exception("The specified mode: " + litMode + " is not supported. Currently available are: " + _availableLiteralRemoval)
     }
   }
 
@@ -75,9 +94,13 @@ class SimilaritySampler extends Transformer {
     val rawLit = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
       .withColumnRenamed("value", "entityA")
 
-    // dirty way to remove literals
-    // val raw = rawLit.where(rawLit("entityA").contains("http://"))
-    val raw = rawLit
+    // dirty way to remove literals TODO: add better literal removal
+    val raw: DataFrame = _litMode match {
+      case "none" =>
+        rawLit
+      case "http" =>
+        rawLit.where(rawLit("entityA").contains("http://"))
+    }
 
     val rawDF: DataFrame = _mode match {
       case "cross" | "sparql" =>
