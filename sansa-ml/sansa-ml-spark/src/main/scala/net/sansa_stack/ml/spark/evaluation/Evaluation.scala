@@ -82,18 +82,19 @@ object Evaluation {
 
     val resnik = new ResnikModel()
     val result = resnik.setTarget(target)
-      .setDepth(5)
+      .setDepth(10)
       .transform(triplesDF)
     result.show(false)
 
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)
-      .setDepth(5).setMode("breadth")
+      .setDepth(10).setMode("breadth")
       .transform(triplesDF)
     result2.show(false)
 
-    val result4 = wuandpalmer.setTarget(target)
-      .setDepth(5).setMode("join")
+    val wuandpalmer2 = new WuAndPalmerModel()
+    val result4 = wuandpalmer2.setTarget(target)
+      .setDepth(10).setMode("join")
       .transform(triplesDF)
     result4.show(false)
 

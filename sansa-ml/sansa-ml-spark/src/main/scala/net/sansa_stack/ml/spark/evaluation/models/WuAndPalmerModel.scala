@@ -298,11 +298,10 @@ class WuAndPalmerModel extends Transformer{
       val rents = renter.where(renter("uri") =!= "")
 
       val rooter = featureExtractorModel.setMode("root").setDepth(_depth).setTarget(rents).transform(dataset)
+
       val roots = rooter.groupBy("entity")
         .agg(max(rooter("depth")))
         .withColumnRenamed("max(depth)", "rootdist")
-
-      roots.show(false)
 
       _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
       _max = dataset.count()

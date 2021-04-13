@@ -35,6 +35,16 @@ class FeatureExtractorEval extends Transformer {
     value/overall
   })
 
+  private val depth_small = udf((alt: Int, neu: Int) => {
+    if (alt == null || neu < alt) {
+      neu
+    } else if (neu == null || alt < neu) {
+      alt
+    } else {
+      0
+    }
+  })
+
   protected val doubleBreadth = udf((a: String, b: String) => {
     var i: Int = 0
 
@@ -205,7 +215,7 @@ class FeatureExtractorEval extends Transformer {
         // target.withColumn("parents", parent(col("_1"), rawFeatures))
       case "par2" | "root" =>
         val parents: DataFrame = rawFeatures.toDF()
-        var right: DataFrame = parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
+        var right: DataFrame = parents.toDF(parents.columns.map(_ + "_R"): _*)
         var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1"))
           .drop("uri").withColumn("depth", lit(1))
 
@@ -213,9 +223,15 @@ class FeatureExtractorEval extends Transformer {
 
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
-          right = new_parents.drop("depth").toDF(parents.columns.map(_ + "_R"): _*)
-          new_parents = new_parents.union(new_parents.drop("depth").join(right, new_parents("_2") === right("_1_R"))
-            .drop("_2", "_1_R").withColumn("depth", lit(i + 1))).distinct()
+          right = new_parents.toDF(new_parents.columns.map(_ + "_R"): _*)
+
+          new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
+            .drop("_2", "_1_R", "depth_R", "depth")
+            .withColumn("depth", lit(i + 1)))
+            .groupBy("_1", "_2")
+            .agg(min(col("depth")))
+            .withColumnRenamed("min(depth)", "depth")
+
           val temp: Long = new_parents.count()
 
           // if the length of the dataframe is the same as in the last iteration break the loop
