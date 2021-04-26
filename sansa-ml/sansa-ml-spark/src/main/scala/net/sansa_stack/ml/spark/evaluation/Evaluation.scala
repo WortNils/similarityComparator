@@ -54,7 +54,7 @@ object Evaluation {
     val triplesDF = NTripleReader
       .load(
         spark,
-        inputPath,
+        inputPath2,
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
@@ -68,13 +68,17 @@ object Evaluation {
      */
 
     triplesDF.show(false)
+    println("#triples: " + triplesDF.count())
 
     // set input uris
     // val target: DataFrame = Seq(("<m1>", "<m2>"), ("<m2>", "<m1>")).toDF()
     /* val target: DataFrame = Seq(("file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m3", "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/m2")).toDF()
       .withColumnRenamed("_1", "entityA").withColumnRenamed("_2", "entityB") */
     val sampler = new SimilaritySampler()
-    val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
+    val target: DataFrame = sampler.setMode("limit")
+      .setLimit(10)
+      .setLiteralRemoval("http")
+      .transform(triplesDF)
     // val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
 
     target.show(false)
@@ -82,27 +86,29 @@ object Evaluation {
 
     val resnik = new ResnikModel()
     val result = resnik.setTarget(target)
-      .setDepth(10)
+      .setDepth(5)
       .transform(triplesDF)
     result.show(false)
 
+    /*
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)
-      .setDepth(10).setMode("breadth")
+      .setDepth(5).setMode("breadth")
+      .transform(triplesDF)
+    result2.show(false) */
+
+    val wuandpalmer = new WuAndPalmerModel()
+    val result2 = wuandpalmer.setTarget(target)
+      .setDepth(5).setMode("join")
       .transform(triplesDF)
     result2.show(false)
-
-    val wuandpalmer2 = new WuAndPalmerModel()
-    val result4 = wuandpalmer2.setTarget(target)
-      .setDepth(10).setMode("join")
-      .transform(triplesDF)
-    result4.show(false)
 
     val tversky = new TverskyModel()
     val result3 = tversky.setTarget(target)
       .transform(triplesDF)
     result3.show(false)
 
+    /*
     result.filter((result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
 
     result2.filter((result2("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result2("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result2("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result2("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
@@ -110,6 +116,7 @@ object Evaluation {
     result4.filter((result4("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result4("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result4("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result4("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
 
     result3.filter((result3("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result3("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result3("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result3("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
+    */
 
     /*
     val asGraph = new SimilarityExperimentMetaGraphFactory()

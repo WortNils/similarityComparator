@@ -17,7 +17,7 @@ import scala.util.control.Breaks._
  */
 class FeatureExtractorEval extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
-  private val _availableModes = Array("par", "par2", "ic", "root", "feat", "path")
+  private val _availableModes = Array("par", "par2", "ic", "root", "feat", "path", "apsp")
   private var _mode: String = "par"
   private var _depth: Int = 1
   private var _outputCol: String = "extractedFeatures"
@@ -47,6 +47,11 @@ class FeatureExtractorEval extends Transformer {
 
   protected val doubleBreadth = udf((a: String, b: String) => {
     var i: Int = 0
+
+    // TODO: rewrite this with breadth
+    // Queue in level aufteilen
+    // am Ende intersection bilden
+    // erstes gemeinsames parent bestimmt iterationsende, aber nicht sofort
 
     val Q_a = ArrayBuffer(a)
     val Q_b = ArrayBuffer(b)
@@ -200,6 +205,8 @@ class FeatureExtractorEval extends Transformer {
           // join the data with itself then add these rows to the original data
           new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R")).distinct()
+
+          /*
           val temp: Long = new_parents.count()
           // println(temp)
 
@@ -207,7 +214,7 @@ class FeatureExtractorEval extends Transformer {
           if (temp == token) {
             break
           }
-          token = temp
+          token = temp */
         }}
         new_parents.withColumnRenamed("_1", "entity")
           .withColumnRenamed("_2", "parent")
@@ -231,14 +238,16 @@ class FeatureExtractorEval extends Transformer {
             .groupBy("_1", "_2")
             .agg(min(col("depth")))
             .withColumnRenamed("min(depth)", "depth")
+          // make sure if aggregation is worth it
 
+          /*
           val temp: Long = new_parents.count()
 
           // if the length of the dataframe is the same as in the last iteration break the loop
           if (temp == token) {
             break
           }
-          token = temp
+          token = temp */
         }}
         new_parents.withColumnRenamed("_1", "entity")
           .withColumnRenamed("_2", "parent")
@@ -273,6 +282,8 @@ class FeatureExtractorEval extends Transformer {
         // two simultaneous breadth-first searches
         _data = rawFeatures.collect()
         _target.withColumn("pathdist", doubleBreadth(col("entityA"), col("entityB")))
+      case "apsp" =>
+        _target
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +

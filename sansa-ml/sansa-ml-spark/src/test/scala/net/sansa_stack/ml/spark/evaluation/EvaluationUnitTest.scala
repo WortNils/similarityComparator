@@ -3,7 +3,9 @@ package net.sansa_stack.ml.spark.evaluation
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
+import net.sansa_stack.rdf.common.io.riot.error.{ErrorParseMode, WarningParseMode}
 import net.sansa_stack.rdf.spark.io._
+import net.sansa_stack.rdf.spark.model.TripleOperations
 import org.apache.jena.graph
 import org.apache.jena.riot.Lang
 import org.apache.jena.sys.JenaSystem
@@ -12,14 +14,14 @@ import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.{DataFrame, Dataset}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.scalactic.TolerantNumerics
 import org.scalatest.FunSuite
 
 class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
   // define inputpath if it is not parameter
-  private val inputPath = this.getClass.getClassLoader.getResource("similarity/movie.nt").getPath
+  private val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
 
   // var triplesDf: DataFrame = spark.read.rdf(Lang.NTRIPLES)(inputPath).cache()
 
@@ -31,6 +33,14 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
+    val spark = SparkSession.builder
+      .appName(s"Semantic Similarity Evaluator Tester")
+      .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
+    import spark.implicits._
+
     JenaSystem.init()
   }
 
@@ -38,7 +48,13 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
     // read in data as DataFrame
     println("Read in RDF Data as DataFrame")
-    val triplesDf: DataFrame = spark.read.rdf(Lang.NTRIPLES)(inputPath).cache()
+    val triplesDf = NTripleReader
+      .load(
+        spark,
+        inputPath,
+        stopOnBadTerm = ErrorParseMode.SKIP,
+        stopOnWarnings = WarningParseMode.IGNORE)
+      .toDF().cache()
 
     triplesDf.show(false)
 
@@ -63,6 +79,12 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       .setMode("cross")
     val target = sample.transform(triplesDf)
 
+    val featureTarget = target.drop("entityA")
+      .withColumnRenamed("entityB", "uri")
+      .union(target.drop("entityB")
+        .withColumnRenamed("entityA", "uri"))
+      .distinct()
+
     // test feature extractor
     println("Test Feature Extractor")
     val modesToTest = List("par", "par2", "ic", "root", "feat", "path")
@@ -71,6 +93,14 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       val featureExtractor = new FeatureExtractorEval()
         .setMode(mode)
         .setDepth(10)
+
+      if (mode == "path") {
+        featureExtractor.setTarget(target)
+      }
+      else {
+        featureExtractor.setTarget(featureTarget)
+      }
+
       val extractedFeaturesDataFrame = featureExtractor
         .transform(triplesDf)
 
