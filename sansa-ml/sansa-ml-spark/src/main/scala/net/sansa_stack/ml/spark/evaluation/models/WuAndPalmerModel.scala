@@ -272,12 +272,45 @@ class WuAndPalmerModel extends Transformer{
       // timekeeping
       val t0 = System.currentTimeMillis()
 
+      // find all nodes
+      val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
+      val data = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+        .withColumnRenamed("value", "uri")
+
+      // parent calculation
+      val featureExtractorModel = new FeatureExtractorEval()
+        .setMode("apsp")
+        .setDepth(_depth)
+        .setTarget(data)
+
+      val apsp = featureExtractorModel.transform(dataset)
+
+      // join for entityA and entityB
+      val target: DataFrame = _target.join(apsp, _target("entityA") === apsp("uri"))
+        .drop("uri")
+        .withColumnRenamed("parents", "featuresA")
+        .join(apsp, _target("entityB") === apsp("uri"))
+        .drop("uri")
+        .withColumnRenamed("parents", "featuresB")
+
+      // find longest paths for every entity
+      val roots = apsp
+        .groupBy("entity")
+        .agg(max(apsp("depth")))
+        .withColumnRenamed("max(depth)", "rootdist")
+
+      _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+      _max = dataset.count()
+
       // timekeeping
       val t1 = System.currentTimeMillis()
       t_net = t1 - t0
 
-      _target.withColumn("WuAndPalmer", lit(0))
-        .withColumn("WuAndPalmerTime", lit(t_net))
+      val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
+        .drop("featuresA", "featuresB")
+      result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+        .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
+        .drop("WuAndPalmerTemp")
     }
     else if (_mode == "breadth") {
       // timekeeping
