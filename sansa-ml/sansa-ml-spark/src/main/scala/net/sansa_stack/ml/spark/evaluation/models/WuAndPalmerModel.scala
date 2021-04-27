@@ -49,7 +49,7 @@ class WuAndPalmerModel extends Transformer{
     }
     else {
       // Timekeeping
-      val t2 = System.nanoTime()
+      val t2 = System.currentTimeMillis()
 
       // main calculations
       val a2 = a.toMap
@@ -59,7 +59,7 @@ class WuAndPalmerModel extends Transformer{
 
       if (c.isEmpty) {
         // Timekeeping
-        val t3 = System.nanoTime()
+        val t3 = System.currentTimeMillis()
         val t_diff = (t_net + t3 - t2)/1000000000
 
         // return value
@@ -85,8 +85,8 @@ class WuAndPalmerModel extends Transformer{
       val wupalm: Double = temp.toDouble / (minDist.toDouble + temp.toDouble)
 
       // Timekeeping
-      val t3 = System.nanoTime()
-      val t_diff = (t_net + t3 - t2)/1000000000
+      val t3 = System.currentTimeMillis()
+      val t_diff = (t_net + t3 - t2)/1000000
 
       // return value
       return (wupalm, t_diff)
@@ -98,7 +98,7 @@ class WuAndPalmerModel extends Transformer{
    */
   protected val wuandpalmerbreadth = udf((m: Int, parent: String) => {
     // Timekeeping
-    val t2 = System.nanoTime()
+    val t2 = System.currentTimeMillis()
 
     var n = new Array[Int](1)
     val ccc = new Array[String](1)
@@ -117,8 +117,8 @@ class WuAndPalmerModel extends Transformer{
     }
 
     // Timekeeping
-    val t3 = System.nanoTime()
-    val t_diff = (t_net + t3 - t2)/1000000000
+    val t3 = System.currentTimeMillis()
+    val t_diff = (t_net + t3 - t2)/1000000
 
     (wupalm, t_diff)
   })
@@ -209,7 +209,7 @@ class WuAndPalmerModel extends Transformer{
   def transform (dataset: Dataset[_]): DataFrame = {
     if (_mode == "join") {
       // timekeeping
-      val t0 = System.nanoTime()
+      val t0 = System.currentTimeMillis()
 
       // parent calculation
       val featureExtractorModel = new FeatureExtractorEval()
@@ -259,7 +259,7 @@ class WuAndPalmerModel extends Transformer{
       // target.where($"featuresB".isNull).show(false)
 
       // timekeeping
-      val t1 = System.nanoTime()
+      val t1 = System.currentTimeMillis()
       t_net = t1 - t0
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
@@ -270,10 +270,10 @@ class WuAndPalmerModel extends Transformer{
     }
     else if (_mode == "path") {
       // timekeeping
-      val t0 = System.nanoTime()
+      val t0 = System.currentTimeMillis()
 
       // timekeeping
-      val t1 = System.nanoTime()
+      val t1 = System.currentTimeMillis()
       t_net = t1 - t0
 
       _target.withColumn("WuAndPalmer", lit(0))
@@ -281,7 +281,7 @@ class WuAndPalmerModel extends Transformer{
     }
     else if (_mode == "breadth") {
       // timekeeping
-      val t0 = System.nanoTime()
+      val t0 = System.currentTimeMillis()
 
       val featureExtractorModel = new FeatureExtractorEval()
         .setMode("path").setDepth(_depth).setTarget(_target)
@@ -307,7 +307,7 @@ class WuAndPalmerModel extends Transformer{
       _max = dataset.count()
 
       // timekeeping
-      val t1 = System.nanoTime()
+      val t1 = System.currentTimeMillis()
       t_net = t1 - t0
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))

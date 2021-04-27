@@ -38,7 +38,7 @@ class TverskyModel extends Transformer {
 
   protected val tversky = udf((a: Vector, b: Vector, alpha: Double, beta: Double) => {
     // Timekeeping
-    val t2 = System.nanoTime()
+    val t2 = System.currentTimeMillis()
 
     val featureIndicesA = a.toSparse.indices
     val featureIndicesB = b.toSparse.indices
@@ -46,7 +46,7 @@ class TverskyModel extends Transformer {
     val fSetB = featureIndicesB.toSet
     if (fSetA.union(fSetB) == 0) {
       // Timekeeping
-      val t3 = System.nanoTime()
+      val t3 = System.currentTimeMillis()
       val t_diff = (t_net + t3 - t2)/1000000000
 
       (0.0, t_diff)
@@ -62,8 +62,8 @@ class TverskyModel extends Transformer {
         )
 
       // Timekeeping
-      val t3 = System.nanoTime()
-      val t_diff = (t_net + t3 - t2)/1000000000
+      val t3 = System.currentTimeMillis()
+      val t_diff = (t_net + t3 - t2)/1000000
       (tversky, t_diff)
     }
   })
@@ -141,7 +141,7 @@ class TverskyModel extends Transformer {
    */
   def transform (dataset: Dataset[_]): DataFrame = {
     // timekeeping
-    val t0 = System.nanoTime()
+    val t0 = System.currentTimeMillis()
 
     // parent calculation
     val tempDf = _target.drop("entityA")
@@ -161,7 +161,7 @@ class TverskyModel extends Transformer {
       .withColumnRenamed("vectorizedFeatures", "featuresB")
 
     // timekeeping
-    val t1 = System.nanoTime()
+    val t1 = System.currentTimeMillis()
     t_net = t1 - t0
 
     val result = target.withColumn("TverskyTemp", tversky(col("featuresA"), col("featuresB"), lit(_alpha), lit(_beta)))

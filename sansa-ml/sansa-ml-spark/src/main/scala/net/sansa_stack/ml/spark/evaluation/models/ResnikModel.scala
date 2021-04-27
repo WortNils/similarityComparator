@@ -54,7 +54,7 @@ class ResnikModel extends Transformer {
     }
     else {
       // Timekeeping
-      val t2 = System.nanoTime()
+      val t2 = System.currentTimeMillis()
 
       // main calculations
       val inter: List[String] = a.intersect(b)
@@ -68,8 +68,8 @@ class ResnikModel extends Transformer {
       }
 
       // Timekeeping
-      val t3 = System.nanoTime()
-      val t_diff = (t_net + t3 - t2)/1000000000
+      val t3 = System.currentTimeMillis()
+      val t_diff = (t_net + t3 - t2)/1000000
 
       // return value
       return (maxIC, t_diff)
@@ -116,7 +116,7 @@ class ResnikModel extends Transformer {
    */
   def transform (dataset: Dataset[_]): DataFrame = {
     // timekeeping
-    val t0 = System.nanoTime()
+    val t0 = System.currentTimeMillis()
 
     // parent calculation
     val featureExtractorModel = new FeatureExtractorEval()
@@ -150,7 +150,7 @@ class ResnikModel extends Transformer {
       .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
 
     // timekeeping
-    val t1 = System.nanoTime()
+    val t1 = System.currentTimeMillis()
     t_net = t1 - t0
 
     val result = target.withColumn("ResnikTemp", resnik(col("featuresA"), col("featuresB")))
