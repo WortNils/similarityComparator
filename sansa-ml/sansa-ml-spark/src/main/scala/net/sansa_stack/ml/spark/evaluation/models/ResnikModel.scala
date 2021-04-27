@@ -49,7 +49,7 @@ class ResnikModel extends Transformer {
   def resnikMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
-      val t_diff = t_net/1000000000
+      val t_diff = t_net/1000
       return (0.0, t_diff)
     }
     else {
@@ -69,7 +69,7 @@ class ResnikModel extends Transformer {
 
       // Timekeeping
       val t3 = System.currentTimeMillis()
-      val t_diff = (t_net + t3 - t2)/1000000
+      val t_diff = (t_net + t3 - t2)/1000
 
       // return value
       return (maxIC, t_diff)

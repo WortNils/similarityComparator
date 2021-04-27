@@ -47,7 +47,7 @@ class TverskyModel extends Transformer {
     if (fSetA.union(fSetB) == 0) {
       // Timekeeping
       val t3 = System.currentTimeMillis()
-      val t_diff = (t_net + t3 - t2)/1000000000
+      val t_diff = (t_net + t3 - t2)/1000
 
       (0.0, t_diff)
     }
@@ -63,7 +63,7 @@ class TverskyModel extends Transformer {
 
       // Timekeeping
       val t3 = System.currentTimeMillis()
-      val t_diff = (t_net + t3 - t2)/1000000
+      val t_diff = (t_net + t3 - t2)/1000
       (tversky, t_diff)
     }
   })

@@ -200,7 +200,7 @@ class FeatureExtractorEval extends Transformer {
         val parents: DataFrame = rawFeatures.toDF()
         var right: DataFrame = parents.toDF(parents.columns.map(_ + "_R"): _*)
         var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1")).drop("uri")
-        var token: Long = new_parents.count()
+        // var token: Long = new_parents.count()
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
           new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
@@ -226,7 +226,7 @@ class FeatureExtractorEval extends Transformer {
         var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1"))
           .drop("uri").withColumn("depth", lit(1))
 
-        var token: Long = new_parents.count()
+        // var token: Long = new_parents.count()
 
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data

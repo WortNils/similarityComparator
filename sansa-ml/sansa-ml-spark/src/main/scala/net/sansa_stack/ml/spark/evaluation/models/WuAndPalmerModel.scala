@@ -44,7 +44,7 @@ class WuAndPalmerModel extends Transformer{
   def WuAndPalmerMethod(a: List[(String, Int)], b: List[(String, Int)]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
-      val t_diff = t_net/1000000000
+      val t_diff = t_net/1000
       return (0.0, t_diff)
     }
     else {
@@ -60,7 +60,7 @@ class WuAndPalmerModel extends Transformer{
       if (c.isEmpty) {
         // Timekeeping
         val t3 = System.currentTimeMillis()
-        val t_diff = (t_net + t3 - t2)/1000000000
+        val t_diff = (t_net + t3 - t2)/1000
 
         // return value
         return (0.0, t_diff)
@@ -86,7 +86,7 @@ class WuAndPalmerModel extends Transformer{
 
       // Timekeeping
       val t3 = System.currentTimeMillis()
-      val t_diff = (t_net + t3 - t2)/1000000
+      val t_diff = (t_net + t3 - t2)/1000
 
       // return value
       return (wupalm, t_diff)
@@ -118,7 +118,7 @@ class WuAndPalmerModel extends Transformer{
 
     // Timekeeping
     val t3 = System.currentTimeMillis()
-    val t_diff = (t_net + t3 - t2)/1000000
+    val t_diff = (t_net + t3 - t2)/1000
 
     (wupalm, t_diff)
   })
