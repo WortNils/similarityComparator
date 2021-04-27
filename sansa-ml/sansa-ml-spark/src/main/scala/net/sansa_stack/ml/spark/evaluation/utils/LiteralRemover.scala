@@ -1,9 +1,10 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
+import org.apache.jena.graph.Triple
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
 
 class LiteralRemover extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
@@ -13,6 +14,9 @@ class LiteralRemover extends Transformer {
 
   def transform (dataset: Dataset[_]): DataFrame = {
 
+    implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
+    val data: Dataset[Triple] = dataset.as[Triple]
+
     val ds: DataFrame = dataset.toDF()
 
     val raw: DataFrame = _litMode match {
@@ -20,6 +24,8 @@ class LiteralRemover extends Transformer {
         ds
       case "http" =>
         ds.where(ds("_1").contains("http://"))
+      case "bool" =>
+        data.filter(_.getObject.isURI()).toDF()
     }
     raw
   }

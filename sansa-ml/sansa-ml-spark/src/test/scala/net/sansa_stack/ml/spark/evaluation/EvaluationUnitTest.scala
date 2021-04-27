@@ -92,7 +92,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     for (mode <- modesToTest) {
       val featureExtractor = new FeatureExtractorEval()
         .setMode(mode)
-        .setDepth(10)
+        .setDepth(5)
 
       if (mode == "path") {
         featureExtractor.setTarget(target)
@@ -119,16 +119,16 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       val result = modelName match {
         case "ResnikModel" => new ResnikModel()
           .setTarget(target)
-          .setDepth(10)
+          .setDepth(5)
           .transform(triplesDf)
         case "WuAndPalmerModelJoin" => new WuAndPalmerModel()
           .setTarget(target)
-          .setDepth(10)
+          .setDepth(5)
           .setMode("join")
           .transform(triplesDf)
         case "WuAndPalmerModelBreadth" => new WuAndPalmerModel()
           .setTarget(target)
-          .setDepth(10)
+          .setDepth(5)
           .setMode("breadth")
           .transform(triplesDf)
         case "TverskyModel" => new TverskyModel()
