@@ -18,6 +18,8 @@ class SimilaritySampler extends Transformer {
   private val _availableLiteralRemoval = Array("none", "http")
   private var _litMode = "none"
 
+  private var _sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"
+
   private val _outputCols: Array[String] = Array("entityA", "entityB")
   private var _seed: Long = 10
   private var _limit: Int = 1
@@ -34,7 +36,7 @@ class SimilaritySampler extends Transformer {
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + "is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
     }
   }
 
@@ -82,6 +84,17 @@ class SimilaritySampler extends Transformer {
   }
 
   /**
+   * This method takes the sparql query for the sparql mode
+   * @param sparql a String specifying the sparql query in sparql mode
+   * @return returns the SimilaritySampler
+   */
+  def setSPARQLQuery(sparql: String): this.type = {
+    // TODO: Add check for valid sparql query
+    _sparql = sparql
+    this
+  }
+
+  /**
    * Takes read in dataset and produces a dataframe paired up entities
    * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with two columns, one for string of the first URI and one for the second
@@ -89,18 +102,14 @@ class SimilaritySampler extends Transformer {
   def transform(dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
 
-    val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
+    val literalRem = new LiteralRemover
 
-    val rawLit = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+    val lit = literalRem.setMode(_litMode).transform(dataset)
+
+    val ds: Dataset[(String, String, String)] = lit.toDF().as[(String, String, String)]
+
+    val raw = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
       .withColumnRenamed("value", "entityA")
-
-    // dirty way to remove literals TODO: add better literal removal
-    val raw: DataFrame = _litMode match {
-      case "none" =>
-        rawLit
-      case "http" =>
-        rawLit.where(rawLit("entityA").contains("http://"))
-    }
 
     val rawDF: DataFrame = _mode match {
       case "cross" | "sparql" =>
@@ -123,7 +132,7 @@ class SimilaritySampler extends Transformer {
         val retDf: DataFrame = tempDf.crossJoin(tempDf.withColumnRenamed("entityA", "entityB"))
         retDf.where(retDf("entityA") >= retDf("entityB"))
       case "sparql" =>
-        val _queryString = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"
+        val _queryString = _sparql
         val sparqlFrame = new SparqlFrame()
           .setSparqlQuery(_queryString)
         val res = sparqlFrame.transform(dataset)

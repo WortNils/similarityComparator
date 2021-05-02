@@ -9,23 +9,41 @@ import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
 class LiteralRemover extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
-  private val _availableLiteralRemoval = Array("none", "http")
-  private var _litMode = "none"
+  private val _availableModes = Array("none", "http", "bool")
+  private var _mode = "none"
+
+  /**
+   * This method changes how literals are removed
+   * @param mode a string specifying the mode
+   * @return returns the FeatureExtractor
+   */
+  def setMode(mode: String): this.type = {
+    if (_availableModes.contains(mode)) {
+      _mode = mode
+      this
+    }
+    else {
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
+    }
+  }
 
   def transform (dataset: Dataset[_]): DataFrame = {
 
+    /*
     implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
     val data: Dataset[Triple] = dataset.as[Triple]
+    */
 
     val ds: DataFrame = dataset.toDF()
 
-    val raw: DataFrame = _litMode match {
+    val raw: DataFrame = _mode match {
       case "none" =>
         ds
       case "http" =>
-        ds.where(ds("_1").contains("http://"))
+        ds.where(ds("s").contains("http://") && ds("p").contains("http://") && ds("o").contains("http://"))
       case "bool" =>
-        data.filter(_.getObject.isURI()).toDF()
+        // data.filter(_.getObject.isURI()).toDF()
+        ds
     }
     raw
   }
