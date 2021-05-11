@@ -32,7 +32,7 @@ object Evaluation {
     import spark.implicits._
 
     // define inputpath if it is not parameter
-    val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
+    val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.ttl"
     val outputPath = "C://evaluationData/movie3.csv"
     // val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/linkedmdb-18-05-2009-dump.nt"
     val inputPath2 = "D:/Benutzer/Nils/sciebo/Bachelorarbeit/Datasets/wordnet.nt"
@@ -51,6 +51,7 @@ object Evaluation {
       .toDS().cache()
      */
 
+    /*
     val triplesDF = NTripleReader
       .load(
         spark,
@@ -58,6 +59,9 @@ object Evaluation {
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
+    */
+
+    val triplesDF = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
 
     /*
     val _queryString = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"
@@ -77,7 +81,7 @@ object Evaluation {
     val sampler = new SimilaritySampler()
     val target: DataFrame = sampler.setMode("limit")
       .setLimit(10)
-      .setLiteralRemoval("http")
+      .setLiteralRemoval("bool")
       .transform(triplesDF)
     // val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
 

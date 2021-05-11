@@ -21,7 +21,7 @@ import org.scalatest.FunSuite
 class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
   // define inputpath if it is not parameter
-  private val inputPath = "./sansa-ml/sansa-ml-spark/src/main/resources/movieData/movie.nt"
+  private val inputPath = "./sansa-ml/sansa-ml-spark/src/test/resources/similarity/movie.ttl"
 
   // var triplesDf: DataFrame = spark.read.rdf(Lang.NTRIPLES)(inputPath).cache()
 
@@ -48,6 +48,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
     // read in data as DataFrame
     println("Read in RDF Data as DataFrame")
+    /*
     val triplesDf = NTripleReader
       .load(
         spark,
@@ -55,6 +56,8 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
         stopOnBadTerm = ErrorParseMode.SKIP,
         stopOnWarnings = WarningParseMode.IGNORE)
       .toDF().cache()
+    */
+    val triplesDf = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
 
     triplesDf.show(false)
 
@@ -138,6 +141,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
           .transform(triplesDf)
       }
 
+      // TODO: add check for m1 vs m2
       val valueP1P2 = result.filter((result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2")
 
       if (modelName == "ResnikModel") {

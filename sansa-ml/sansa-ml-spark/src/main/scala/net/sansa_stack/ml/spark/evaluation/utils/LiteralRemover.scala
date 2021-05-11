@@ -37,10 +37,8 @@ class LiteralRemover extends Transformer {
    */
   def transform (dataset: Dataset[_]): DataFrame = {
 
-    /*
     implicit val tripleEncoder = Encoders.kryo(classOf[Triple])
     val data: Dataset[Triple] = dataset.as[Triple]
-    */
 
     val ds: DataFrame = dataset.toDF()
 
@@ -50,8 +48,7 @@ class LiteralRemover extends Transformer {
       case "http" =>
         ds.where(ds("s").contains("http://") && ds("p").contains("http://") && ds("o").contains("http://"))
       case "bool" =>
-        // data.filter(_.getObject.isURI()).toDF()
-        ds
+        data.filter(_.getObject.isURI()).toDF()
     }
     raw
   }
