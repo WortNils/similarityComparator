@@ -6,6 +6,9 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
 
+/**
+ * This Class creates from a dataset of triples, a DataFrame that has no literals in it
+ */
 class LiteralRemover extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
@@ -27,6 +30,11 @@ class LiteralRemover extends Transformer {
     }
   }
 
+  /**
+   * Takes read in dataset and removes triples that have literals from it
+   * @param dataset a dataframe read in over sansa rdf layer
+   * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
+   */
   def transform (dataset: Dataset[_]): DataFrame = {
 
     /*
