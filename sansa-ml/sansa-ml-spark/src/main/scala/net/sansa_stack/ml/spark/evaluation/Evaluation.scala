@@ -81,7 +81,7 @@ object Evaluation {
     val sampler = new SimilaritySampler()
     val target: DataFrame = sampler.setMode("limit")
       .setLimit(10)
-      .setLiteralRemoval("bool")
+      .setLiteralRemoval("none")
       .transform(triplesDF)
     // val target: DataFrame = sampler.setMode("cross").transform(triplesDF)
 

@@ -76,7 +76,9 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       println(" Test Sampling mode: " + mode)
 
       sampledDataFrame.show(false)
+      // TODO: add tests for the sampling with a List of pairs
     }
+    // TODO: add tests for literalremoval
 
     val sample = new SimilaritySampler()
       .setMode("cross")
@@ -110,6 +112,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       println("  Test Feature Extraction mode: " + mode)
 
       extractedFeaturesDataFrame.show(false)
+      // TODO: test features of m1 and m2
     }
 
     val modelNames = List("ResnikModel", "WuAndPalmerModelJoin", "WuAndPalmerModelBreadth", "TverskyModel")
@@ -124,41 +127,56 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
           .setTarget(target)
           .setDepth(5)
           .transform(triplesDf)
+          .withColumnRenamed("Resnik", "distCol")
         case "WuAndPalmerModelJoin" => new WuAndPalmerModel()
           .setTarget(target)
           .setDepth(5)
           .setMode("join")
           .transform(triplesDf)
+          .withColumnRenamed("WuAndPalmer", "distCol")
         case "WuAndPalmerModelBreadth" => new WuAndPalmerModel()
           .setTarget(target)
           .setDepth(5)
           .setMode("breadth")
           .transform(triplesDf)
+          .withColumnRenamed("WuAndPalmer", "distCol")
         case "TverskyModel" => new TverskyModel()
           .setTarget(target)
           .setAlpha(1.0)
           .setBeta(1.0)
           .transform(triplesDf)
+          .withColumnRenamed("Tversky", "distCol")
       }
 
-      // TODO: add check for m1 vs m2
-      val valueP1P2 = result.filter((result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2")
+      val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+        .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+      val valueM1M2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+        .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
       if (modelName == "ResnikModel") {
-        val desiredValue = 1/6
-        assert(valueP1P2 === desiredValue)
+        val desiredValueP = 1/6
+        assert(valueP1P2 === desiredValueP)
+        val desiredValueM = 1/6
+        assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "WuAndPalmerModelJoin") {
         val desiredValue = 1/4
         assert(valueP1P2 === desiredValue)
+        val desiredValueM = 1/2
+        assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "WuAndPalmerModelBreadth") {
         val desiredValue = 1/4
         assert(valueP1P2 === desiredValue)
+        val desiredValueM = 1/2
+        assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "TverskyModel") {
         val desiredValue = 0
         assert(valueP1P2 === desiredValue)
+        val desiredValueM = 1/8
+        assert(valueM1M2 === desiredValueM)
       }
     }
   }

@@ -264,9 +264,14 @@ class WuAndPalmerModel extends Transformer{
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
         .drop("featuresA", "featuresB")
-      result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+      val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
         .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
         .drop("WuAndPalmerTemp")
+
+      val t4 = System.currentTimeMillis()
+      val t_ = (t4-t0)/1000
+
+      temp.withColumn("WuAndPalmerFullTime", lit(t_))
     }
     else if (_mode == "path") {
       // timekeeping
@@ -308,9 +313,14 @@ class WuAndPalmerModel extends Transformer{
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
         .drop("featuresA", "featuresB")
-      result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+      val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
         .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
         .drop("WuAndPalmerTemp")
+
+      val t4 = System.currentTimeMillis()
+      val t_ = (t4-t0)/1000
+
+      temp.withColumn("WuAndPalmerFullTime", lit(t_))
     }
     else if (_mode == "breadth") {
       // timekeeping
@@ -345,13 +355,19 @@ class WuAndPalmerModel extends Transformer{
 
       val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
          .drop("pathdist", "dist", "parent")
-      result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+      val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
         .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
         .drop("WuAndPalmerTemp")
+
+      val t4 = System.currentTimeMillis()
+      val t_ = (t4-t0)/1000
+
+      temp.withColumn("WuAndPalmerFullTime", lit(t_))
     }
     else {
       _target.withColumn("WuAndPalmer", lit(0))
         .withColumn("WuAndPalmerTime", lit(0))
+        .withColumn("WuAndPalmerFullTime", lit(0))
     }
   }
 

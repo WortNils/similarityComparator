@@ -15,7 +15,7 @@ class SimilaritySampler extends Transformer {
   private val _availableModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
   private var _mode: String = "cross"
 
-  private val _availableLiteralRemoval = Array("none", "http")
+  private val _availableLiteralRemoval = Array("none", "http", "bool")
   private var _litMode = "none"
 
   private var _sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o}"

@@ -155,14 +155,14 @@ class ResnikModel extends Transformer {
 
     val result = target.withColumn("ResnikTemp", resnik(col("featuresA"), col("featuresB")))
       .drop("featuresA", "featuresB")
-    result.withColumn("Resnik", result("ResnikTemp._1"))
+    val temp = result.withColumn("Resnik", result("ResnikTemp._1"))
       .withColumn("ResnikTime", result("ResnikTemp._2"))
       .drop("ResnikTemp")
 
     val t4 = System.currentTimeMillis()
     val t_ = (t4-t0)/1000
 
-    result.withColumn("ResnikFullTime", lit(t_))
+    temp.withColumn("ResnikFullTime", lit(t_))
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
