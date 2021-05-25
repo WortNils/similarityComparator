@@ -225,19 +225,21 @@ class FeatureExtractorEval extends Transformer {
         var right: DataFrame = parents.toDF(parents.columns.map(_ + "_R"): _*)
         var new_parents: DataFrame = _target.join(parents, _target("uri") === parents("_1"))
           .drop("uri").withColumn("depth", lit(1))
+        var parentunion: DataFrame = new_parents
 
         // var token: Long = new_parents.count()
 
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
-          right = new_parents.toDF(new_parents.columns.map(_ + "_R"): _*)
-
-          new_parents = new_parents.union(new_parents.join(right, new_parents("_2") === right("_1_R"))
+          new_parents.show(false)
+          new_parents = new_parents.join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R", "depth_R", "depth")
-            .withColumn("depth", lit(i + 1)))
-            .groupBy("_1", "_2")
-            .agg(min(col("depth")))
-            .withColumnRenamed("min(depth)", "depth")
+            .withColumn("depth", lit(i + 1))
+            .withColumnRenamed("_2_R", "_2")
+
+          new_parents.isEmpty
+
+          parentunion = parentunion.union(new_parents)
           // make sure if aggregation is worth it
 
           /*
@@ -249,7 +251,11 @@ class FeatureExtractorEval extends Transformer {
           }
           token = temp */
         }}
-        new_parents.withColumnRenamed("_1", "entity")
+        parentunion.groupBy("_1", "_2")
+          .agg(min(col("depth")))
+          .withColumnRenamed("min(depth)", "depth")
+
+        parentunion.withColumnRenamed("_1", "entity")
           .withColumnRenamed("_2", "parent")
       case "ic" =>
         overall = rawFeatures.count()/2

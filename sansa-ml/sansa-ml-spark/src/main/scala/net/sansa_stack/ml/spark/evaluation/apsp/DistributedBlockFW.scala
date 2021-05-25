@@ -214,7 +214,7 @@ class DistributedBlockFW (
    */
   def compute(A: BlockMatrix): ApspResult = {
     require(A.numRows() == A.numCols(), "The adjacency matrix must be square.")
-    //require(A.rowsPerBlock == A.colsPerBlock, "The matrix must be square.")
+    // require(A.rowsPerBlock == A.colsPerBlock, "The matrix must be square.")
     require(A.numRowBlocks == A.numColBlocks, "The blocks making up the adjacency matrix must be square.")
     require(A.rowsPerBlock == A.colsPerBlock, "The matrix in each block should be square")
     A.validate()
@@ -225,7 +225,7 @@ class DistributedBlockFW (
     val sc = A.blocks.sparkContext
     sc.setCheckpointDir(checkpointDir)
     val n = A.numRows()
-    //val niter = math.ceil(n * 1.0 / stepSize).toInt
+    // val niter = math.ceil(n * 1.0 / stepSize).toInt
     val blockNInter = math.ceil(A.rowsPerBlock * 1.0 / stepSize).toInt
     val niter = blockNInter * (A.numRowBlocks - 1) +
       math.ceil((A.numRows - A.rowsPerBlock * (A.numRowBlocks - 1))  * 1.0 / stepSize).toInt

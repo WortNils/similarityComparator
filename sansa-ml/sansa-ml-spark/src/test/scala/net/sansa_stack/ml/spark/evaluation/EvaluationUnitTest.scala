@@ -44,6 +44,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     JenaSystem.init()
   }
 
+  // TODO: add more tests for each part
   test("Test DistSim Modules") {
 
     // read in data as DataFrame
@@ -153,7 +154,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
         .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
-      val valueM1M2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+      val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
         .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
       if (modelName == "ResnikModel") {
