@@ -148,6 +148,8 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
           .withColumnRenamed("Tversky", "distCol")
       }
 
+      result.show(false)
+
       val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
         .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
@@ -155,27 +157,27 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
         .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
       if (modelName == "ResnikModel") {
-        val desiredValueP = 1/6
+        val desiredValueP = 0.166666666666666
         assert(valueP1P2 === desiredValueP)
-        val desiredValueM = 1/6
+        val desiredValueM = 0.166666666666666
         assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "WuAndPalmerModelJoin") {
-        val desiredValue = 1/4
+        val desiredValue = 0.25
         assert(valueP1P2 === desiredValue)
-        val desiredValueM = 1/2
+        val desiredValueM = 0.5
         assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "WuAndPalmerModelBreadth") {
-        val desiredValue = 1/4
+        val desiredValue = 0.25
         assert(valueP1P2 === desiredValue)
-        val desiredValueM = 1/2
+        val desiredValueM = 0.5
         assert(valueM1M2 === desiredValueM)
       }
       else if (modelName == "TverskyModel") {
         val desiredValue = 0
         assert(valueP1P2 === desiredValue)
-        val desiredValueM = 1/8
+        val desiredValueM = 0.125
         assert(valueM1M2 === desiredValueM)
       }
     }
