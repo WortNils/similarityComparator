@@ -44,29 +44,34 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     JenaSystem.init()
   }
 
-  // TODO: add more tests for each part
-  test("Test DistSim Modules") {
+  var data: DataFrame = spark.emptyDataFrame
 
-    // read in data as DataFrame
-    println("Read in RDF Data as DataFrame")
-    /*
-    val triplesDf = NTripleReader
-      .load(
-        spark,
-        inputPath,
-        stopOnBadTerm = ErrorParseMode.SKIP,
-        stopOnWarnings = WarningParseMode.IGNORE)
-      .toDF().cache()
-    */
-    val triplesDf = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
+    test("Test Readin") {
+      // read in data as DataFrame
+      println("Read in RDF Data as DataFrame")
+      /*
+      val triplesDf = NTripleReader
+        .load(
+          spark,
+          inputPath,
+          stopOnBadTerm = ErrorParseMode.SKIP,
+          stopOnWarnings = WarningParseMode.IGNORE)
+        .toDF().cache()
+      */
+      val triplesDf = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
+      triplesDf.show(false)
+      data = triplesDf
+    }
 
-    triplesDf.show(false)
-
+    test("Test Sampling") {
     // test sampler
     println("Test Sampler")
+    import spark.implicits._
     val sampleModesToTest = List("cross", "limit", "rand")
 
     for (mode <- sampleModesToTest) {
+      val triplesDf = data
+
       val sampler = new SimilaritySampler()
         .setMode(mode)
         .setLimit(10)
@@ -78,8 +83,21 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
       sampledDataFrame.show(false)
       // TODO: add tests for the sampling with a List of pairs
+
+      val test = sampledDataFrame.select(sampledDataFrame("entityA") === "urn:a1")
+        .orderBy("entityB")
+        .drop("entityA")
+
+      val actual = Seq(("a1", "a2", "a3", "a4", "m1", "m2", "m3", "p1", "p2")).toDF().orderBy()
+
+      assert(test === actual)
     }
-    // TODO: add tests for literalremoval
+  }
+
+  // TODO: add more tests for each part
+  test("Test DistSim Modules") {
+
+    // TODO: add tests for literal removal
 
     val sample = new SimilaritySampler()
       .setMode("cross")
