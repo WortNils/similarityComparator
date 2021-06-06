@@ -63,14 +63,18 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       data = triplesDf
     }
 
+    test("Test Literal Removal") {
+      // TODO: make sample dataset for literal removal
+    }
+
     test("Test Sampling") {
     // test sampler
     println("Test Sampler")
     import spark.implicits._
     val sampleModesToTest = List("cross", "limit", "rand")
+    val triplesDf = data
 
     for (mode <- sampleModesToTest) {
-      val triplesDf = data
 
       val sampler = new SimilaritySampler()
         .setMode(mode)
@@ -82,22 +86,23 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       println(" Test Sampling mode: " + mode)
 
       sampledDataFrame.show(false)
-      // TODO: add tests for the sampling with a List of pairs
 
       val test = sampledDataFrame.select(sampledDataFrame("entityA") === "urn:a1")
         .orderBy("entityB")
         .drop("entityA")
 
-      val actual = Seq(("a1", "a2", "a3", "a4", "m1", "m2", "m3", "p1", "p2")).toDF().orderBy()
+      val actual = Seq(("a1", "a2", "a3", "a4", "m1", "m2", "m3", "p1", "p2")).toDF().orderBy("_1")
 
+      // TODO: fix assertion
       assert(test === actual)
     }
   }
 
-  // TODO: add more tests for each part
-  test("Test DistSim Modules") {
+  test("Test FeatureExtractor") {
+    // test featureExtractor
+    println("Test FeatureExtractor")
 
-    // TODO: add tests for literal removal
+    val triplesDf = data
 
     val sample = new SimilaritySampler()
       .setMode("cross")
@@ -133,72 +138,116 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       extractedFeaturesDataFrame.show(false)
       // TODO: test features of m1 and m2
     }
+  }
 
-    val modelNames = List("ResnikModel", "WuAndPalmerModelJoin", "WuAndPalmerModelBreadth", "TverskyModel")
+  test("Test Resnik Model") {
+    val triplesDf = data
 
-    // evaluate all models
-    for (modelName <- modelNames) {
-      println("Test model: " + modelName)
+    val sample = new SimilaritySampler()
+      .setMode("cross")
+    val target = sample.transform(triplesDf)
 
-      // model setup
-      val result = modelName match {
-        case "ResnikModel" => new ResnikModel()
-          .setTarget(target)
-          .setDepth(5)
-          .transform(triplesDf)
-          .withColumnRenamed("Resnik", "distCol")
-        case "WuAndPalmerModelJoin" => new WuAndPalmerModel()
-          .setTarget(target)
-          .setDepth(5)
-          .setMode("join")
-          .transform(triplesDf)
-          .withColumnRenamed("WuAndPalmer", "distCol")
-        case "WuAndPalmerModelBreadth" => new WuAndPalmerModel()
-          .setTarget(target)
-          .setDepth(5)
-          .setMode("breadth")
-          .transform(triplesDf)
-          .withColumnRenamed("WuAndPalmer", "distCol")
-        case "TverskyModel" => new TverskyModel()
-          .setTarget(target)
-          .setAlpha(1.0)
-          .setBeta(1.0)
-          .transform(triplesDf)
-          .withColumnRenamed("Tversky", "distCol")
-      }
+    val result = new ResnikModel()
+      .setTarget(target)
+      .setDepth(5)
+      .transform(triplesDf)
+      .withColumnRenamed("Resnik", "distCol")
 
-      result.show(false)
+    result.show(false)
 
-      val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
-        .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+    val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
-      val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
-        .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+    val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
 
-      if (modelName == "ResnikModel") {
-        val desiredValueP = 0.166666666666666
-        assert(valueP1P2 === desiredValueP)
-        val desiredValueM = 0.166666666666666
-        assert(valueM1M2 === desiredValueM)
-      }
-      else if (modelName == "WuAndPalmerModelJoin") {
-        val desiredValue = 0.25
-        assert(valueP1P2 === desiredValue)
-        val desiredValueM = 0.5
-        assert(valueM1M2 === desiredValueM)
-      }
-      else if (modelName == "WuAndPalmerModelBreadth") {
-        val desiredValue = 0.25
-        assert(valueP1P2 === desiredValue)
-        val desiredValueM = 0.5
-        assert(valueM1M2 === desiredValueM)
-      }
-      else if (modelName == "TverskyModel") {
-        val desiredValue = 0
-        assert(valueP1P2 === desiredValue)
-        val desiredValueM = 0.125
-        assert(valueM1M2 === desiredValueM)
-      }
-    }
+    val desiredValueP = 0.166666666666666
+    assert(valueP1P2 === desiredValueP)
+    val desiredValueM = 0.166666666666666
+    assert(valueM1M2 === desiredValueM)
+  }
+
+  test("Test Wu And Palmer Join Model") {
+    val triplesDf = data
+
+    val sample = new SimilaritySampler()
+      .setMode("cross")
+    val target = sample.transform(triplesDf)
+
+    val result = new WuAndPalmerModel()
+      .setTarget(target)
+      .setDepth(5)
+      .setMode("join")
+      .transform(triplesDf)
+      .withColumnRenamed("WuAndPalmer", "distCol")
+
+    result.show(false)
+
+    val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val desiredValue = 0.25
+    assert(valueP1P2 === desiredValue)
+    val desiredValueM = 0.5
+    assert(valueM1M2 === desiredValueM)
+  }
+
+  test("Test Wu And Palmer Breadth Model") {
+    val triplesDf = data
+
+    val sample = new SimilaritySampler()
+      .setMode("cross")
+    val target = sample.transform(triplesDf)
+
+    val result = new WuAndPalmerModel()
+      .setTarget(target)
+      .setDepth(5)
+      .setMode("breadth")
+      .transform(triplesDf)
+      .withColumnRenamed("WuAndPalmer", "distCol")
+
+    result.show(false)
+
+    val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val desiredValue = 0.25
+    assert(valueP1P2 === desiredValue)
+    val desiredValueM = 0.5
+    assert(valueM1M2 === desiredValueM)
+  }
+
+  test("Test Wu And Palmer Breadth Model") {
+    val triplesDf = data
+
+    val sample = new SimilaritySampler()
+      .setMode("cross")
+    val target = sample.transform(triplesDf)
+
+    val result = new TverskyModel()
+      .setTarget(target)
+      .setAlpha(1.0)
+      .setBeta(1.0)
+      .transform(triplesDf)
+      .withColumnRenamed("Tversky", "distCol")
+
+    result.show(false)
+
+    val valueP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val valueM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
+      .select("distCol").rdd.map(r => r.getAs[Double]("distCol")).collect().take(1)(0)
+
+    val desiredValue = 0
+    assert(valueP1P2 === desiredValue)
+    val desiredValueM = 0.125
+    assert(valueM1M2 === desiredValueM)
   }
 }
