@@ -320,6 +320,8 @@ class WuAndPalmerModel extends Transformer{
       val t4 = System.currentTimeMillis()
       val t_ = (t4-t0)/1000
 
+      target.count()
+
       temp.withColumn("WuAndPalmerFullTime", lit(t_))
     }
     else if (_mode == "breadth") {
@@ -361,6 +363,8 @@ class WuAndPalmerModel extends Transformer{
 
       val t4 = System.currentTimeMillis()
       val t_ = (t4-t0)/1000
+
+      target.count()
 
       temp.withColumn("WuAndPalmerFullTime", lit(t_))
     }

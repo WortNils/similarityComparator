@@ -164,6 +164,8 @@ class TverskyModel extends Transformer {
     val t1 = System.currentTimeMillis()
     t_net = t1 - t0
 
+    target.count()
+
     val result = target.withColumn("TverskyTemp", tversky(col("featuresA"), col("featuresB"), lit(_alpha), lit(_beta)))
       .drop("featuresA", "featuresB")
     result.withColumn("Tversky", result("TverskyTemp._1"))

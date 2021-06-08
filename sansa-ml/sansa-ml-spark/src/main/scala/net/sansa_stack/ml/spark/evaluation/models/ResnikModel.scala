@@ -200,6 +200,8 @@ class ResnikModel extends Transformer {
     val t1 = System.currentTimeMillis()
     t_net = t1 - t0
 
+    target.count()
+
     val result = target.withColumn("ResnikTemp", resnik(col("featuresA"), col("featuresB")))
       .drop("featuresA", "featuresB")
     val temp = result.withColumn("Resnik", result("ResnikTemp._1"))
