@@ -114,25 +114,24 @@ class ResnikModel extends Transformer with SimilarityModel {
   }
 
   /**
-   * This method sets the feature Dataframe for this Model
-   * @param features target Dataframe with pairs of entities
+   * Insert features into the model with a uri column, a parent column and the information
+   * content of the parent in another column
+   * @param features DataFrame with the data
+   * @param uri name of the uri column
+   * @param parent name of the parent column
+   * @param informationContent name of the information content column
    * @return the Resnik model
    */
-  def setFeatures(features: DataFrame): this.type = {
-    if ({
-      var test = true
-      for (inputCol <- _inputCols) {
-        if (!features.columns.contains(inputCol)) {
-          test = false
-        }
-      }
-      test
-    }) {
-      _features = features.select(_inputCols.map(col): _*)
+  def setFeatures(features: DataFrame, uri: String, parent: String, informationContent: String): this.type = {
+    if (!features.isEmpty) {
+      _features = features.select(uri, parent, informationContent)
+        .withColumnRenamed(uri, _inputCols(0))
+        .withColumnRenamed(parent, _inputCols(1))
+        .withColumnRenamed(informationContent, _inputCols(2))
       this
     }
     else {
-      throw new Exception("Features DataFrame must contain " + _inputCols.mkString(", ") + " columns")
+      throw new Exception("Features DataFrame must not be empty")
     }
   }
 

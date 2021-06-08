@@ -21,7 +21,6 @@ trait SimilarityModel {
   private val _availableModes = Array("")
   private var _mode: String = ""
 
-  private var _inputCols: Array[String] = Array("uri", "features")
   private var _outputCol: String = "similarityValue"
 
   def transform (dataset: Dataset[_]): DataFrame
