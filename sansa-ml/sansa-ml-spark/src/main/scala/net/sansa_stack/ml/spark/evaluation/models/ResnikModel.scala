@@ -20,12 +20,15 @@ class ResnikModel extends Transformer {
   private val _availableModes = Array("res")
   private var _mode: String = "res"
   private var _depth: Int = 1
+
+  private var _inputCols: Array[String] = Array("uri", "parent", "informationContent")
   private var _outputCol: String = "extractedFeatures"
 
   private var t_net: Double = 0.0
 
   private var _target: DataFrame = spark.emptyDataFrame
   private var _parents: DataFrame = spark.emptyDataFrame
+  private var _features: DataFrame = spark.emptyDataFrame
 
   private var _info: Map[String, Double] = Map(" " -> 0)
 
@@ -110,6 +113,29 @@ class ResnikModel extends Transformer {
   }
 
   /**
+   * This method sets the feature Dataframe for this Model
+   * @param features target Dataframe with pairs of entities
+   * @return the Resnik model
+   */
+  def setFeatures(features: DataFrame): this.type = {
+    if ({
+      var test = true
+      for (inputCol <- _inputCols) {
+        if (!features.columns.contains(inputCol)) {
+          test = false
+        }
+      }
+      test
+    }) {
+      _features = features.select(_inputCols.map(col): _*)
+      this
+    }
+    else {
+      throw new Exception("Features DataFrame must contain " + _inputCols.mkString(", ") + " columns")
+    }
+  }
+
+  /**
    * Takes read in dataframe, and target dataframe and produces a dataframe with similarity values
    * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
@@ -118,36 +144,57 @@ class ResnikModel extends Transformer {
     // timekeeping
     val t0 = System.currentTimeMillis()
 
-    // parent calculation
-    val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("par").setDepth(_depth)
-      .setTarget(_target.drop("entityA")
-        .withColumnRenamed("entityB", "uri")
-        .union(_target.drop("entityB")
-          .withColumnRenamed("entityA", "uri"))
-        .distinct())
-    _parents = featureExtractorModel
-      .transform(dataset)
+    var target: DataFrame = spark.emptyDataFrame
 
-    val bparents: DataFrame = _parents.groupBy("entity")
-      .agg(collect_list("parent"))
-      .withColumnRenamed("collect_list(parent)", "parents")
-    // bparents.show(false)
-    // bparents.printSchema()
+    if (_features.isEmpty) {
+      // parent calculation
+      val featureExtractorModel = new FeatureExtractorEval()
+        .setMode("par").setDepth(_depth)
+        .setTarget(_target.drop("entityA")
+          .withColumnRenamed("entityB", "uri")
+          .union(_target.drop("entityB")
+            .withColumnRenamed("entityA", "uri"))
+          .distinct())
+      _parents = featureExtractorModel
+        .transform(dataset)
 
-    // _target.show(false)
-    val target: DataFrame = _target.join(bparents, _target("entityA") === bparents("entity"))
-      .drop("entity")
-      .withColumnRenamed("parents", "featuresA")
-      .join(bparents, _target("entityB") === bparents("entity"))
-      .drop("entity")
-      .withColumnRenamed("parents", "featuresB")
-    // target.show(false)
+      val bparents: DataFrame = _parents.groupBy("entity")
+        .agg(collect_list("parent"))
+        .withColumnRenamed("collect_list(parent)", "parents")
+      // bparents.show(false)
+      // bparents.printSchema()
 
-    // information content calculation
-    // TODO: maybe rewrite this for bigger data
-    _info = featureExtractorModel.setMode("ic")
-      .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
+      // _target.show(false)
+      target = _target.join(bparents, _target("entityA") === bparents("entity"))
+        .drop("entity")
+        .withColumnRenamed("parents", "featuresA")
+        .join(bparents, _target("entityB") === bparents("entity"))
+        .drop("entity")
+        .withColumnRenamed("parents", "featuresB")
+      // target.show(false)
+
+      // information content calculation
+      // TODO: maybe rewrite this for bigger data
+      _info = featureExtractorModel.setMode("ic")
+        .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
+    } else {
+      _parents = _features.select(_inputCols(0), _inputCols(1))
+      val bparents: DataFrame = _parents.groupBy(_inputCols(0))
+        .agg(collect_list("parent"))
+        .withColumnRenamed("collect_list(parent)", "parents")
+
+      target = _target.join(bparents, _target("entityA") === bparents(_inputCols(0)))
+        .drop(_inputCols(0))
+        .withColumnRenamed("parents", "featuresA")
+        .join(bparents, _target("entityB") === bparents(_inputCols(0)))
+        .drop(_inputCols(0))
+        .withColumnRenamed("parents", "featuresB")
+      // target.show(false)
+
+      // information content calculation
+      // TODO: maybe rewrite this for bigger data
+      _info = _features.select(_inputCols(0), _inputCols(2)).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
+    }
 
     // timekeeping
     val t1 = System.currentTimeMillis()
