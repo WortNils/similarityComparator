@@ -94,6 +94,30 @@ object Evaluation {
       .transform(triplesDF)
     result.show(false)
 
+
+    val featureExtractor = new FeatureExtractorEval()
+      .setMode("par").setDepth(5)
+      .setTarget(target.drop("entityA")
+        .withColumnRenamed("entityB", "uri")
+        .union(target.drop("entityB")
+          .withColumnRenamed("entityA", "uri"))
+        .distinct())
+    val parents = featureExtractor.transform(triplesDF)
+
+    val informationC = featureExtractor.setMode("ic")
+      .transform(triplesDF)
+      .withColumnRenamed("entity", "entity2")
+
+    val features = parents.join(informationC, parents("parent") === informationC("entity2")).drop("entity2")
+    features.show(false)
+
+    val resnik2 = new ResnikModel()
+    val result_2 = resnik2.setTarget(target)
+      .setFeatures(features, "entity", "parent", "informationContent")
+      .transform(target)
+
+    result_2.show(false)
+
     /*
     val wuandpalmer = new WuAndPalmerModel()
     val result2 = wuandpalmer.setTarget(target)

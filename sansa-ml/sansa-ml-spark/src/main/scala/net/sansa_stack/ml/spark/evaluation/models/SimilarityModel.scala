@@ -6,11 +6,10 @@ trait SimilarityModel {
   // generic variables
   val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
-  private var t_net: Double = 0.0
 
   // input dataframes
-  private var _target: DataFrame = spark.emptyDataFrame
-  private var _features: DataFrame = spark.emptyDataFrame
+  protected var _target: DataFrame
+  protected var _features: DataFrame
 
   // meta information
   val estimatorName: String = "SimilarityEstimator"

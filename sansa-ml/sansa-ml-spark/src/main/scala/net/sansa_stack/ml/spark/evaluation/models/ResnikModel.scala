@@ -26,9 +26,9 @@ class ResnikModel extends Transformer with SimilarityModel {
 
   private var t_net: Double = 0.0
 
-  private var _target: DataFrame = spark.emptyDataFrame
-  private var _parents: DataFrame = spark.emptyDataFrame
-  private var _features: DataFrame = spark.emptyDataFrame
+  protected var _target: DataFrame = spark.emptyDataFrame
+  protected var _parents: DataFrame = spark.emptyDataFrame
+  protected var _features: DataFrame = spark.emptyDataFrame
 
   private var _info: Map[String, Double] = Map(" " -> 0)
 
@@ -50,7 +50,7 @@ class ResnikModel extends Transformer with SimilarityModel {
    * @param b List of parents for entity b
    * @return 2-Tuple of Resnik value and time taken
    */
-  def resnikMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
+  private def resnikMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000
@@ -178,7 +178,6 @@ class ResnikModel extends Transformer with SimilarityModel {
       _info = featureExtractorModel.setMode("ic")
         .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     } else {
-      // TODO: assume parents + their information content
       _parents = _features.select(_inputCols(0), _inputCols(1))
       val bparents: DataFrame = _parents.groupBy(_inputCols(0))
         .agg(collect_list("parent"))
