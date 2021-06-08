@@ -78,7 +78,7 @@ class WuAndPalmerModel extends Transformer{
       try {
         n = ccc.map(_rootdist(_))
       } catch {
-        case f: NoSuchElementException => n(0) = _max.toInt
+        case f: NoSuchElementException => n(0) = 0 // used to be max.toInt
       }
       val temp: Int = 2*n(0)
 
@@ -107,7 +107,7 @@ class WuAndPalmerModel extends Transformer{
     try {
       n = ccc.map(_rootdist(_))
     } catch {
-      case f: NoSuchElementException => n(0) = _max.toInt
+      case f: NoSuchElementException => n(0) = 0 // used to be max.toInt
     }
 
     var wupalm: Double = 0

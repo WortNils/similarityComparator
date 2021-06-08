@@ -178,6 +178,7 @@ class ResnikModel extends Transformer {
       _info = featureExtractorModel.setMode("ic")
         .transform(dataset).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     } else {
+      // TODO: assume parents + their information content
       _parents = _features.select(_inputCols(0), _inputCols(1))
       val bparents: DataFrame = _parents.groupBy(_inputCols(0))
         .agg(collect_list("parent"))
@@ -193,7 +194,7 @@ class ResnikModel extends Transformer {
 
       // information content calculation
       // TODO: maybe rewrite this for bigger data
-      _info = _features.select(_inputCols(0), _inputCols(2)).rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
+      _info = _features.select(_inputCols(1), _inputCols(2)).distinct().rdd.map(x => (x.getString(0), x.getDouble(1))).collectAsMap()
     }
 
     // timekeeping

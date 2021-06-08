@@ -44,7 +44,6 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     spark.sparkContext.setLogLevel("ERROR")
     import spark.implicits._
 
-
     JenaSystem.init()
   }
 

@@ -14,7 +14,7 @@ import scala.collection.Map
 
 
 /**
- * This class generates similarity measures for a given array of uri pairs.
+ * This class generates similarity measures for a given DataFrame of uri pairs.
  */
 class GenericSimilarityModel extends Transformer {
   val spark = SparkSession.builder.getOrCreate()
