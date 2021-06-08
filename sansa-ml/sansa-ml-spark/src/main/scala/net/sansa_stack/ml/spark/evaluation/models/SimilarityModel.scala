@@ -1,6 +1,6 @@
 package net.sansa_stack.ml.spark.evaluation.models
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 trait SimilarityModel {
   // generic variables
@@ -23,4 +23,6 @@ trait SimilarityModel {
 
   private var _inputCols: Array[String] = Array("uri", "features")
   private var _outputCol: String = "similarityValue"
+
+  def transform (dataset: Dataset[_]): DataFrame
 }

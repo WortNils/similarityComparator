@@ -14,8 +14,8 @@ import scala.collection.Map
  * This class takes a base dataset and a target DataFrame and returns the Resnik similarity value
  * and the time it took to arrive at that value in a DataFrame
  */
-class ResnikModel extends Transformer {
-  val spark = SparkSession.builder.getOrCreate()
+class ResnikModel extends Transformer with SimilarityModel {
+  override val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("res")
   private var _mode: String = "res"
@@ -32,8 +32,9 @@ class ResnikModel extends Transformer {
 
   private var _info: Map[String, Double] = Map(" " -> 0)
 
-  val estimatorName: String = "ResnikSimilarityEstimator"
-  val estimatorMeasureType: String = "similarity"
+  override val estimatorName: String = "ResnikSimilarityEstimator"
+  override val estimatorMeasureType: String = "information content based"
+  override val modelType: String = "Resnik"
 
   /**
    * This udf maps a uri to its information content value
