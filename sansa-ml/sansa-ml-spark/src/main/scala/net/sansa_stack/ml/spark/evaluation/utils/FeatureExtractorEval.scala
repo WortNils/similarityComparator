@@ -231,7 +231,7 @@ class FeatureExtractorEval extends Transformer {
 
         breakable {for (i <- 1 to _depth) {
           // join the data with itself then add these rows to the original data
-          new_parents.show(false)
+          // new_parents.show(false)
           new_parents = new_parents.join(right, new_parents("_2") === right("_1_R"))
             .drop("_2", "_1_R", "depth_R", "depth")
             .withColumn("depth", lit(i + 1))
