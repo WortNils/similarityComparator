@@ -15,25 +15,28 @@ import scala.collection.Map
  * This class takes a base dataset and a target DataFrame and returns the Wu and Palmer similarity value
  * and the time it took to arrive at that value in a DataFrame
  */
-class WuAndPalmerModel extends Transformer{
-  val spark = SparkSession.builder.getOrCreate()
+class WuAndPalmerModel extends Transformer with SimilarityModel{
+  override val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("join", "path", "breadth")
   private var _mode: String = "join"
   private var _depth: Int = 1
+
+  private var _inputCols: Array[String] = Array("uri", "parent", "depth", "rootDist")
   private var _outputCol: String = "extractedFeatures"
 
   private var _rootdist: Map[String, Int] = Map("ab" -> 2)
   private var _rootdist2: Map[String, Double] = Map("ab" -> 2.0)
   private var _max: Long = 0
 
-  val estimatorName: String = "WuAndPalmerSimilarityEstimator"
-  val estimatorMeasureType: String = "similarity"
+  override val estimatorName: String = "WuAndPalmerSimilarityEstimator"
+  override val estimatorMeasureType: String = "similarity"
 
   private var t_net: Double = 0.0
 
-  private var _target: DataFrame = spark.emptyDataFrame
-  private var _parents: DataFrame = spark.emptyDataFrame
+  protected var _target: DataFrame = spark.emptyDataFrame
+  protected var _parents: DataFrame = spark.emptyDataFrame
+  protected var _features: DataFrame = spark.emptyDataFrame
 
   /**
    * This method takes two lists of parents and their distance to the entity and returns the Wu and Palmer similarity value
@@ -198,6 +201,30 @@ class WuAndPalmerModel extends Transformer{
     }
     else {
       throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
+    }
+  }
+
+  /**
+   * Insert features into the model with a uri column, a parent column and the information
+   * content of the parent in another column
+   * @param features DataFrame with the data
+   * @param uri name of the uri column
+   * @param parent name of the parent column
+   * @param depth name of the depth column
+   * @param rootDist name of the root distance column
+   * @return the WuAndPalmer model
+   */
+  def setFeatures(features: DataFrame, uri: String, parent: String, depth: String, rootDist: String): this.type = {
+    if (!features.isEmpty) {
+      _features = features.select(uri, parent, depth, rootDist)
+        .withColumnRenamed(uri, _inputCols(0))
+        .withColumnRenamed(parent, _inputCols(1))
+        .withColumnRenamed(depth, _inputCols(2))
+        .withColumnRenamed(rootDist, _inputCols(3))
+      this
+    }
+    else {
+      throw new Exception("Features DataFrame must not be empty")
     }
   }
 

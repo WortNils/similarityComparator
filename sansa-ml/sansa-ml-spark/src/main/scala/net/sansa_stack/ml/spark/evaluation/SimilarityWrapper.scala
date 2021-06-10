@@ -1,12 +1,10 @@
 package net.sansa_stack.ml.spark.evaluation
 
-import com.mysql.cj.exceptions.WrongArgumentException
-import net.sansa_stack.ml.spark.evaluation.models.{ResnikModel, TverskyModel}
+import net.sansa_stack.ml.spark.evaluation.models.{ResnikModel, TverskyModel, WuAndPalmerModel}
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
-import org.apache.spark.sql.functions.{col, collect_list, max, udf}
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.{col, collect_list, max, udf}
 
-import scala.collection.mutable.ArrayBuffer
 
 class SimilarityWrapper {
   val spark: SparkSession = SparkSession.builder.getOrCreate()
@@ -246,7 +244,15 @@ class SimilarityWrapper {
         .drop("entityA").drop("entityB")
     }
     if (wp) {
-
+      val wupalm = new WuAndPalmerModel()
+      val temp = wupalm.setTarget(target)
+        .setDepth(iterationDepth)
+        .setFeatures(features, "entity", "parent", "depth", "rootDist")
+        .transform(data)
+        .withColumnRenamed("entityA", "entityA_old")
+        .withColumnRenamed("entityB", "entityB_old")
+      result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
+        .drop("entityA").drop("entityB")
     }
     if (tver) {
       val tversky = new TverskyModel()
