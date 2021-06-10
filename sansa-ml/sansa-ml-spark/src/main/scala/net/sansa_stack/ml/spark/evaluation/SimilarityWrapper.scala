@@ -186,7 +186,7 @@ class SimilarityWrapper {
     featureExtractorModel.setTarget(realTarget)
 
     // parents
-    var parents = target
+    var parents = realTarget
 
     if (wp && WP_mode == "join") {
       featureExtractorModel.setMode("par2")
@@ -198,7 +198,7 @@ class SimilarityWrapper {
     }
 
     // vector features
-    var vectors = target
+    var vectors = realTarget
 
     if (tver) {
       featureExtractorModel.setMode("feat")
@@ -224,17 +224,12 @@ class SimilarityWrapper {
         .withColumnRenamed("max(depth)", "rootdist")
     }
 
-    parents = parents.withColumnRenamed("entity", "entity_old")
-    vectors = vectors.withColumnRenamed("entity", "entity_old")
-    informationContent = informationContent.withColumnRenamed("entity", "entity_old")
-    rootDist = rootDist.withColumnRenamed("entity", "entity_old")
-
     // join feature DataFrames
-    val features = target
-      .join(parents, target("entity") === parents("entity_old")).drop("entity_old")
-      .join(vectors, target("entity") === vectors("entity_old")).drop("entity_old")
-      .join(informationContent, target("entity") === informationContent("entity_old")).drop("entity_old")
-      .join(rootDist, target("entity") === rootDist("entity_old")).drop("entity_old")
+    val features = realTarget
+      .join(parents, realTarget("uri") === parents("entity")).drop("entity")
+      .join(vectors, realTarget("uri") === vectors("entity")).drop("entity")
+      .join(informationContent, realTarget("uri") === informationContent("entity")).drop("entity")
+      .join(rootDist, realTarget("uri") === rootDist("entity")).drop("entity")
 
 
     // use models
