@@ -24,7 +24,7 @@ class FeatureExtractorEval extends Transformer {
 
   import spark.implicits._
 
-  private var _target: DataFrame = Seq("0", "1").toDF()
+  private var _target: DataFrame = spark.emptyDataFrame
   private var _root: String = "root"
 
   private var _data: Array[(String, String)] = Seq(("", "")).toArray
@@ -258,13 +258,23 @@ class FeatureExtractorEval extends Transformer {
         parentunion.withColumnRenamed("_1", "entity")
           .withColumnRenamed("_2", "parent")
       case "ic" =>
-        overall = rawFeatures.count()/2
-        val count: DataFrame = rawFeatures.groupBy("_1").count()
+        if (_target.isEmpty) {
+          overall = rawFeatures.count()/2
+          val count: DataFrame = rawFeatures.groupBy("_1").count()
 
-        val info: DataFrame = count.withColumn("informationContent", divideBy(count("count")))
-          .drop("count").withColumnRenamed("_1", "entity")
-        // val info = target.join(count, count("_1") == target("_1"), "left")
-        info
+          val info: DataFrame = count.withColumn("informationContent", divideBy(count("count")))
+            .drop("count").withColumnRenamed("_1", "entity")
+          // val info = target.join(count, count("_1") == target("_1"), "left")
+          info
+        } else {
+          overall = rawFeatures.count()/2
+          val small = _target.join(rawFeatures, _target("uri") === rawFeatures("_1")).drop("uri")
+          val count: DataFrame = small.groupBy("_1").count()
+
+          val info: DataFrame = count.withColumn("informationContent", divideBy(count("count")))
+            .drop("count").withColumnRenamed("_1", "entity")
+          info
+        }
       case "feat" =>
         val filteredFeaturesDataFrame = _target
           .join(rawFeatures, rawFeatures("_1") === _target("uri"))
