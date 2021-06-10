@@ -1,6 +1,7 @@
 package net.sansa_stack.ml.spark.evaluation
 
 import com.mysql.cj.exceptions.WrongArgumentException
+import net.sansa_stack.ml.spark.evaluation.models.ResnikModel
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
 import org.apache.spark.sql.functions.{col, collect_list, max, udf}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -150,6 +151,8 @@ class SimilarityWrapper {
       throw new IllegalArgumentException("T_beta must be between 0 and 1.")
     }
 
+
+    // turn the model array into booleans
     if (models.contains("Resnik")) {
       res = true
     }
@@ -160,6 +163,8 @@ class SimilarityWrapper {
       tver = true
     }
 
+
+    // sampling
     val sampler = new SimilaritySampler()
     val target: DataFrame = sampler
       .setMode(_samplingMode)
@@ -168,8 +173,9 @@ class SimilarityWrapper {
       .setLiteralRemoval(_literalRemovalMode)
       .transform(data)
 
+
+    // feature Extraction
     val featureExtractorModel = new FeatureExtractorEval().setDepth(iterationDepth)
-    var extractionModes: ArrayBuffer[String] = ArrayBuffer("")
 
     val realTarget = target.drop("entityA")
       .withColumnRenamed("entityB", "uri")
@@ -177,12 +183,13 @@ class SimilarityWrapper {
         .withColumnRenamed("entityA", "uri"))
       .distinct()
 
-    // feature Extraction
-    // parents
-    var parents = spark.emptyDataFrame
+    featureExtractorModel.setTarget(realTarget)
 
-    if (wp) {
-      featureExtractorModel.setMode(WP_mode)
+    // parents
+    var parents = target
+
+    if (wp && WP_mode == "join") {
+      featureExtractorModel.setMode("par2")
       parents = featureExtractorModel.transform(data)
     }
     if (res && (!wp || WP_mode != "join")) {
@@ -190,76 +197,65 @@ class SimilarityWrapper {
       parents = featureExtractorModel.transform(data)
     }
 
-    if (res) {
+    // vector features
+    var vectors = target
 
+    if (tver) {
+      featureExtractorModel.setMode("feat")
+      vectors = featureExtractorModel.transform(data)
     }
 
+    // information content
+    var informationContent = parents
+
+    if (res) {
+      featureExtractorModel.setTarget(parents.select("parent").distinct()).setMode("info")
+      informationContent = featureExtractorModel.transform(data)
+    }
+
+    // root distance
+    var rootDist = parents
+
+    if (wp) {
+      featureExtractorModel.setTarget(parents.select("parent").distinct()).setMode("par2")
+      val rooter = featureExtractorModel.transform(data)
+      rootDist = rooter.groupBy("entity")
+        .agg(max(rooter("depth")))
+        .withColumnRenamed("max(depth)", "rootdist")
+    }
+
+    parents = parents.withColumnRenamed("entity", "entity_old")
+    vectors = vectors.withColumnRenamed("entity", "entity_old")
+    informationContent = informationContent.withColumnRenamed("entity", "entity_old")
+    rootDist = rootDist.withColumnRenamed("entity", "entity_old")
+
+    // join feature DataFrames
+    val features = target
+      .join(parents, target("entity") === parents("entity_old")).drop("entity_old")
+      .join(vectors, target("entity") === vectors("entity_old")).drop("entity_old")
+      .join(informationContent, target("entity") === informationContent("entity_old")).drop("entity_old")
+      .join(rootDist, target("entity") === rootDist("entity_old")).drop("entity_old")
+
+
+    // use models
+    var result = target
+    if (res) {
+      val resnik = new ResnikModel()
+      val temp = resnik.setTarget(target)
+        .setDepth(iterationDepth)
+        .setFeatures(features, "entity", "parent", "informationContent")
+        .transform(data)
+        .withColumnRenamed("entityA", "entityA_old")
+        .withColumnRenamed("entityB", "entityB_old")
+      result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
+    }
+    if (wp) {
+
+    }
     if (tver) {
 
     }
-
-
-
-
-    // information content
-    // root distance
-    // vector features
-    if (res && wp && WP_mode == "join") {
-      var feat = spark.emptyDataFrame
-      if (tver) {
-        featureExtractorModel.setMode("feat")
-        feat = featureExtractorModel
-          .transform(data)
-      }
-      val parents = featureExtractorModel
-        .transform(data)
-
-      val bparents: DataFrame = parents
-        .withColumn("parent2", toTuple(col("parent"), col("depth")))
-        .drop("parent", "depth")
-        .groupBy("entity")
-        .agg(collect_list("parent2"))
-        .withColumnRenamed("collect_list(parent2)", "parents")
-
-      val features: DataFrame = target.join(bparents, target("entityA") === bparents("entity"))
-        .drop("entity")
-        .withColumnRenamed("parents", "featuresA")
-        .join(bparents, target("entityB") === bparents("entity"))
-        .drop("entity")
-        .withColumnRenamed("parents", "featuresB")
-
-      val rents = parents.drop("entity", "depth").distinct().withColumnRenamed("parent", "uri")
-      val rooter = featureExtractorModel.setMode("par2").setTarget(rents).transform(data)
-      val roots = rooter.groupBy("entity")
-        .agg(max(rooter("depth")))
-        .withColumnRenamed("max(depth)", "rootdist")
-
-
-      // TODO: think about how to input features properly
-      val featureFrame = target.join(features, target("entityA") === features("uri")).drop("uri")
-        .withColumnRenamed("vectorizedFeatures", "featuresA")
-        .join(features, target("entityB") === features("uri")).drop("uri")
-        .withColumnRenamed("vectorizedFeatures", "featuresB")
-    } else {
-      if (res) {
-        extractionModes.append("par")
-      }
-      if (wp) {
-        extractionModes.append(WP_mode)
-      }
-      if (tver) {
-        extractionModes.append("feat")
-      }
-    }
-
-    var extractedFeatures = spark.emptyDataFrame
-
-    for (mode <- extractionModes) {
-      val tempFeatures = featureExtractorModel.setMode(mode).transform(target)
-      // extractedFeatures = extractedFeatures.union()
-    }
-
-    target
+    result
   }
 
 }
