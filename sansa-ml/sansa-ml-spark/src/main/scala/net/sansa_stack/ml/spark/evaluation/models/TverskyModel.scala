@@ -34,7 +34,7 @@ class TverskyModel extends Transformer with SimilarityModel {
   private var _beta: Double = 1.0
 
   override val estimatorName: String = "TverskySimilarityEstimator"
-  override val estimatorMeasureType: String = "similarity"
+  override val estimatorMeasureType: String = "feature based"
   override val modelType: String = "Tversky"
 
   protected val tversky = udf((a: Vector, b: Vector, alpha: Double, beta: Double) => {
