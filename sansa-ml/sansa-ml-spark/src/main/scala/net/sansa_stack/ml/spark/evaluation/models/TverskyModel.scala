@@ -15,26 +15,27 @@ import scala.collection.Map
  * This class takes a base dataset and a target DataFrame and returns the Resnik similarity value
  * and the time it took to arrive at that value in a DataFrame
  */
-class TverskyModel extends Transformer {
-  val spark = SparkSession.builder.getOrCreate()
+class TverskyModel extends Transformer with SimilarityModel {
+  override val spark = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("tver")
   private var _mode: String = "tver"
   private var _depth: Int = 1
+
+  private var _inputCols: Array[String] = Array("entity", "vectorizedFeatures")
   private var _outputCol: String = "extractedFeatures"
 
   private var t_net: Double = 0.0
 
-  private var _target: DataFrame = spark.emptyDataFrame
-  private var _parents: DataFrame = spark.emptyDataFrame
+  protected var _target: DataFrame = spark.emptyDataFrame
+  protected var _features: DataFrame = spark.emptyDataFrame
 
   private var _alpha: Double = 1.0
   private var _beta: Double = 1.0
 
-  private var _info: Map[String, Double] = Map(" " -> 0)
-
-  val estimatorName: String = "TverskySimilarityEstimator"
-  val estimatorMeasureType: String = "similarity"
+  override val estimatorName: String = "TverskySimilarityEstimator"
+  override val estimatorMeasureType: String = "similarity"
+  override val modelType: String = "Tversky"
 
   protected val tversky = udf((a: Vector, b: Vector, alpha: Double, beta: Double) => {
     // Timekeeping
@@ -44,7 +45,7 @@ class TverskyModel extends Transformer {
     val featureIndicesB = b.toSparse.indices
     val fSetA = featureIndicesA.toSet
     val fSetB = featureIndicesB.toSet
-    if (fSetA.union(fSetB) == 0) {
+    if (fSetA.union(fSetB).isEmpty) {
       // Timekeeping
       val t3 = System.currentTimeMillis()
       val t_diff = (t_net + t3 - t2)/1000
@@ -135,6 +136,26 @@ class TverskyModel extends Transformer {
   }
 
   /**
+   * Insert features into the model with a uri column, a parent column and the information
+   * content of the parent in another column
+   * @param features DataFrame with the data
+   * @param uri name of the uri column
+   * @param vectorizedFeatures name of the features column
+   * @return the Tversky model
+   */
+  def setFeatures(features: DataFrame, uri: String, vectorizedFeatures: String): this.type = {
+    if (!features.isEmpty) {
+      _features = features.select(uri, vectorizedFeatures)
+        .withColumnRenamed(uri, _inputCols(0))
+        .withColumnRenamed(vectorizedFeatures, _inputCols(1))
+      this
+    }
+    else {
+      throw new Exception("Features DataFrame must not be empty")
+    }
+  }
+
+  /**
    * Takes read in dataframe, and target dataframe and produces a dataframe with similarity values
    * @param dataset a dataframe read in over sansa rdf layer
    * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
@@ -143,7 +164,7 @@ class TverskyModel extends Transformer {
     // timekeeping
     val t0 = System.currentTimeMillis()
 
-    // parent calculation
+    // feature calculation
     val tempDf = _target.drop("entityA")
       .withColumnRenamed("entityB", "uri")
       .union(_target.drop("entityB")
@@ -159,6 +180,8 @@ class TverskyModel extends Transformer {
       .withColumnRenamed("vectorizedFeatures", "featuresA")
       .join(features, _target("entityB") === features("uri")).drop("uri")
       .withColumnRenamed("vectorizedFeatures", "featuresB")
+
+    // TODO: insert Feature compatibility
 
     // timekeeping
     val t1 = System.currentTimeMillis()

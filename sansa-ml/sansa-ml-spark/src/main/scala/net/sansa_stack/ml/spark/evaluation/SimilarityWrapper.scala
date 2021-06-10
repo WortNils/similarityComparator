@@ -1,7 +1,7 @@
 package net.sansa_stack.ml.spark.evaluation
 
 import com.mysql.cj.exceptions.WrongArgumentException
-import net.sansa_stack.ml.spark.evaluation.models.ResnikModel
+import net.sansa_stack.ml.spark.evaluation.models.{ResnikModel, TverskyModel}
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
 import org.apache.spark.sql.functions.{col, collect_list, max, udf}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -248,12 +248,21 @@ class SimilarityWrapper {
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
       result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
+        .drop("entityA").drop("entityB")
     }
     if (wp) {
 
     }
     if (tver) {
-
+      val tversky = new TverskyModel()
+      val temp = tversky.setTarget(target)
+        .setDepth(iterationDepth)
+        .setFeatures(features, "entity", "vectorizedFeatures")
+        .transform(data)
+        .withColumnRenamed("entityA", "entityA_old")
+        .withColumnRenamed("entityB", "entityB_old")
+      result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
+        .drop("entityA").drop("entityB")
     }
     result
   }
