@@ -284,6 +284,9 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
       // println(_rootdist)
       _max = dataset.count()
       // target.where($"featuresB".isNull).show(false)
+      /* val valueM1 = _parents.filter(_parents("entity") === "urn:m1")
+      valueM1.show(false) */
+
 
       // timekeeping
       val t1 = System.currentTimeMillis()

@@ -88,6 +88,7 @@ object Evaluation {
     target.show(false)
 
 
+    /*
     val resnik = new ResnikModel()
     val result = resnik.setTarget(target)
       .setDepth(5)
@@ -116,7 +117,7 @@ object Evaluation {
       .setFeatures(features, "entity", "parent", "informationContent")
       .transform(target)
 
-    result_2.show(false)
+    result_2.show(false) */
 
     /*
     val wuandpalmer = new WuAndPalmerModel()
@@ -125,16 +126,34 @@ object Evaluation {
       .transform(triplesDF)
     result2.show(false) */
 
-    val wuandpalmer = new WuAndPalmerModel()
-    val result2 = wuandpalmer.setTarget(target)
+    val t0 = System.currentTimeMillis()
+
+    val wuandpalmer = new WuAndPalmerModel().setTarget(target)
       .setDepth(5).setMode("join")
+
+    val t1 = System.currentTimeMillis()
+
+    val result2 = wuandpalmer
       .transform(triplesDF)
+
+    val t2 = System.currentTimeMillis()
+
     result2.show(false)
 
+    val t3 = System.currentTimeMillis()
+
+    println("time manual: ")
+    println((t0-t1)/1000)
+    println((t0-t2)/1000)
+    println((t0-t3)/1000)
+
+    /*
     val tversky = new TverskyModel()
     val result3 = tversky.setTarget(target)
       .transform(triplesDF)
     result3.show(false)
+    */
+
 
     /*
     result.filter((result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2") || result("entityB") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p1" && result("entityA") === "file:///C:/Users/nilsw/IdeaProjects/similarityComparator/p2").show(false)
