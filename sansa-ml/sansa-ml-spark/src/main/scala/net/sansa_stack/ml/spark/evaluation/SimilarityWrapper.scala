@@ -3,7 +3,7 @@ package net.sansa_stack.ml.spark.evaluation
 import net.sansa_stack.ml.spark.evaluation.models.{ResnikModel, TverskyModel, WuAndPalmerModel}
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{col, collect_list, max, udf}
+import org.apache.spark.sql.functions.max
 
 
 class SimilarityWrapper {
@@ -26,7 +26,7 @@ class SimilarityWrapper {
   private var _literalRemovalMode = "none"
 
 
-  // sampling setter
+  // sampling setters
   /**
    * This method changes how samples are taken
    * @param samplingMode a string specifying the mode
@@ -73,7 +73,7 @@ class SimilarityWrapper {
 
   /**
    * This method takes the sparql query for sparql sampling mode
-   * @param sparql a String specifying the sparql query
+   * @param samplingSparql a String specifying the sparql query
    * @return returns Wrapper
    */
   def setSamplingSPARQLQuery(samplingSparql: String): this.type = {
@@ -100,29 +100,7 @@ class SimilarityWrapper {
     }
   }
 
-  // udfs
-  /**
-   * udf to turn two columns into one tuple column
-   */
-  protected val toTuple = udf((par: String, depth: Int) => {
-    Tuple2(par, depth)
-  })
-
-  /**
-   * udf to turn a tuple column into a single Int column
-   */
-  protected val fromTuple = udf((thing: (String, Int)) => {
-    thing._2
-  })
-
-  /**
-   * udf to turn a tuple column into a single String column
-   */
-  protected val fromTuple_1 = udf((thing: (String, Int)) => {
-    thing._1
-  })
-
-
+  // TODO: add documentation
   def evaluate (data: DataFrame,
                 models: Array[String],
                 iterationDepth: Int = 5,
@@ -267,5 +245,4 @@ class SimilarityWrapper {
     }
     result
   }
-
 }
