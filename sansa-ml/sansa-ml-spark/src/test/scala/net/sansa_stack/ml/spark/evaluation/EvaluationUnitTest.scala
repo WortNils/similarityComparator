@@ -244,4 +244,39 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     val desiredValueM = 0.125
     assert(valueM1M2 === desiredValueM)
   }
+
+  test("Test Wrapper") {
+    val triplesDf = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
+
+    val result = new SimilarityWrapper()
+      .setModels(resnik = true, wuandpalmer = true, tversky = true)
+      .transform(triplesDf)
+
+    result.show(false)
+
+    val rowP1P2 = result.filter((result("entityA") === "urn:p1" && result("entityB") === "urn:p2") || result("entityB") === "urn:p1" && result("entityA") === "urn:p2")
+    val resP1P2 = rowP1P2.select("Resnik").rdd.map(r => r.getAs[Double]("Resnik")).collect().take(1)(0)
+    val wpP1P2 = rowP1P2.select("WuAndPalmer").rdd.map(r => r.getAs[Double]("WuAndPalmer")).collect().take(1)(0)
+    val tverP1P2 = rowP1P2.select("Tversky").rdd.map(r => r.getAs[Double]("Tversky")).collect().take(1)(0)
+
+    val rowM1M2 = result.filter((result("entityA") === "urn:m1" && result("entityB") === "urn:m2") || result("entityB") === "urn:m1" && result("entityA") === "urn:m2")
+    val resM1M2 = rowM1M2.select("Resnik").rdd.map(r => r.getAs[Double]("Resnik")).collect().take(1)(0)
+    val wpM1M2 = rowM1M2.select("WuAndPalmer").rdd.map(r => r.getAs[Double]("WuAndPalmer")).collect().take(1)(0)
+    val tverM1M2 = rowM1M2.select("Tversky").rdd.map(r => r.getAs[Double]("Tversky")).collect().take(1)(0)
+
+    val resValP1P2 = 0.166666666666666
+    assert(resP1P2 === resValP1P2)
+    val resValM1M2 = 0.166666666666666
+    assert(resM1M2 === resValM1M2)
+
+    val wpValP1P2 = 0.25
+    assert(wpP1P2 === wpValP1P2)
+    val wpValM1M2 = 0.5
+    assert(wpM1M2 === wpValM1M2)
+
+    val tverValP1P2 = 0.0
+    assert(tverP1P2 === tverValP1P2)
+    val tverValM1M2 = 0.125
+    assert(tverM1M2 === tverValM1M2)
+  }
 }

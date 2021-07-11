@@ -19,11 +19,11 @@ class SimilarityWrapper extends Transformer {
 
   // model hyperparameters
   private var _iterationDepth: Int = 5
+  private val _availableWPModes = Array("join", "breadth", "path")
   private var _wpMode: String = "join"
   private var _tverAlpha: Double = 1.0
   private var _tverBeta: Double = 1.0
-
-  private val _availableWPModes = Array("join", "breadth", "path")
+  private var _target: DataFrame = spark.emptyDataFrame
 
   // sampling variables
   private val _availableSamplingModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
@@ -357,7 +357,7 @@ class SimilarityWrapper extends Transformer {
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
       result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
-        .drop("entityA").drop("entityB")
+        .drop("entityA_old").drop("entityB_old")
     }
     if (wp) {
       val wupalm = new WuAndPalmerModel()
@@ -368,7 +368,7 @@ class SimilarityWrapper extends Transformer {
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
       result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
-        .drop("entityA").drop("entityB")
+        .drop("entityA_old").drop("entityB_old")
     }
     if (tver) {
       val tversky = new TverskyModel()
@@ -379,7 +379,7 @@ class SimilarityWrapper extends Transformer {
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
       result = result.join(temp, result("entityA") <=> temp("entityA_old") && result("entityB") <=> temp("entityB_old"))
-        .drop("entityA").drop("entityB")
+        .drop("entityA_old").drop("entityB_old")
     }
     result
   }
