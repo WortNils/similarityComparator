@@ -3,18 +3,11 @@ package net.sansa_stack.ml.spark.evaluation
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import net.sansa_stack.ml.spark.evaluation.models._
 import net.sansa_stack.ml.spark.evaluation.utils.{FeatureExtractorEval, SimilaritySampler}
-import net.sansa_stack.rdf.common.io.riot.error.{ErrorParseMode, WarningParseMode}
 import net.sansa_stack.rdf.spark.io._
 import net.sansa_stack.rdf.spark.model.TripleOperations
-import org.apache.jena.graph
 import org.apache.jena.riot.Lang
 import org.apache.jena.sys.JenaSystem
-import org.apache.spark.ml.Transformer
-import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
-import org.apache.spark.ml.linalg.Vector
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.scalactic.TolerantNumerics
 import org.scalatest.FunSuite
 

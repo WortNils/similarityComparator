@@ -1,12 +1,11 @@
 package net.sansa_stack.ml.spark.evaluation.utils
 
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-
-import collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import collection.JavaConverters._
 
 class PairCreator {
-  val spark = SparkSession.builder.getOrCreate()
+  val spark: SparkSession = SparkSession.builder.getOrCreate()
 
   def create (dataset: Dataset[_]): DataFrame = {
     import spark.implicits._
@@ -15,7 +14,7 @@ class PairCreator {
 
     val ds: Dataset[(String, String, String)] = dataset.as[(String, String, String)]
 
-    val temper = ds.flatMap(t => Seq((t._1), (t._3))).distinct().collectAsList()
+    val temper = ds.flatMap(t => Seq(t._1, t._3)).distinct().collectAsList()
     val temp = temper.asScala
     val l = temp.length
     val arr = new ArrayBuffer[(String, String)]

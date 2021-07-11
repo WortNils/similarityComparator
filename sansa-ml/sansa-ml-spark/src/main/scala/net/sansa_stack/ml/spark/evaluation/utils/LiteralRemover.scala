@@ -10,7 +10,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, Encoders, SparkSession}
  * This Class creates from a dataset of triples, a DataFrame that has no literals in it
  */
 class LiteralRemover extends Transformer {
-  val spark = SparkSession.builder.getOrCreate()
+  val spark: SparkSession = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("none", "http", "bool")
   private var _mode = "none"
@@ -26,7 +26,7 @@ class LiteralRemover extends Transformer {
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
   }
 

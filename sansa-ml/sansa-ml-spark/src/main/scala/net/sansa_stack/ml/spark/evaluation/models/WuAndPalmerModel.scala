@@ -3,7 +3,6 @@ package net.sansa_stack.ml.spark.evaluation.models
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
@@ -16,7 +15,7 @@ import scala.collection.Map
  * and the time it took to arrive at that value in a DataFrame
  */
 class WuAndPalmerModel extends Transformer with SimilarityModel{
-  override val spark = SparkSession.builder.getOrCreate()
+  override val spark: SparkSession = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("join", "path", "breadth")
   private var _mode: String = "join"
@@ -48,7 +47,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000
-      return (0.0, t_diff)
+      (0.0, t_diff)
     }
     else {
       // Timekeeping
@@ -92,7 +91,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
       val t_diff = (t_net + t3 - t2)/1000
 
       // return value
-      return (wupalm, t_diff)
+      (wupalm, t_diff)
     }
   }
 
@@ -200,7 +199,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
   }
 
@@ -310,7 +309,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
 
         // find all nodes
         val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
-        val data = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+        val data = ds.flatMap(t => Seq(t._1, t._3)).distinct().toDF()
           .withColumnRenamed("value", "uri")
 
         // parent calculation

@@ -4,19 +4,17 @@ import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
-import scala.collection.mutable.WrappedArray.ofRef
-import scala.collection.Map
 
 /**
  * This class takes a base dataset and a target DataFrame and returns the Resnik similarity value
  * and the time it took to arrive at that value in a DataFrame
  */
 class TverskyModel extends Transformer with SimilarityModel {
-  override val spark = SparkSession.builder.getOrCreate()
+  override val spark: SparkSession = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("tver")
   private var _mode: String = "tver"
@@ -53,14 +51,12 @@ class TverskyModel extends Transformer with SimilarityModel {
       (0.0, t_diff)
     }
     else {
-      val tversky: Double = (
-        (fSetA.intersect(fSetB).size.toDouble)/
-          (
-            (fSetA.intersect(fSetB).size.toDouble)
+      val tversky: Double = fSetA.intersect(fSetB).size.toDouble/(
+            fSetA.intersect(fSetB).size.toDouble
               +  (alpha * fSetA.diff(fSetB).size.toDouble)
               + (beta * fSetB.diff(fSetA).size.toDouble)
             )
-        )
+
 
       // Timekeeping
       val t3 = System.currentTimeMillis()
@@ -161,7 +157,7 @@ class TverskyModel extends Transformer with SimilarityModel {
    * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
    */
   def transform (dataset: Dataset[_]): DataFrame = {
-    if (_features.isEmpty()) {
+    if (_features.isEmpty) {
       // timekeeping
       val t0 = System.currentTimeMillis()
 

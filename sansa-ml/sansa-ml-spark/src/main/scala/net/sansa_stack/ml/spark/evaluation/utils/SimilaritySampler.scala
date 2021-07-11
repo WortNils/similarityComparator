@@ -11,7 +11,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
  * This Class creates from a dataset of triples, a DataFrame that pairs two Uris according to given parameters
  */
 class SimilaritySampler extends Transformer {
-  val spark = SparkSession.builder.getOrCreate()
+  val spark: SparkSession = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
   private var _mode: String = "cross"
 
@@ -36,7 +36,7 @@ class SimilaritySampler extends Transformer {
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + " is not supported. Currently available are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
   }
 
@@ -79,7 +79,7 @@ class SimilaritySampler extends Transformer {
       this
     }
     else {
-      throw new Exception("The specified mode: " + litMode + " is not supported. Currently available are: " + _availableLiteralRemoval)
+      throw new Exception("The specified mode: " + litMode + " is not supported. Currently available are: " + _availableLiteralRemoval.mkString("Array(", ", ", ")"))
     }
   }
 
@@ -108,7 +108,7 @@ class SimilaritySampler extends Transformer {
 
     val ds: Dataset[(String, String, String)] = lit.toDF().as[(String, String, String)]
 
-    val raw = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+    val raw = ds.flatMap(t => Seq(t._1, t._3)).distinct().toDF()
       .withColumnRenamed("value", "entityA")
 
     val rawDF: DataFrame = _mode match {

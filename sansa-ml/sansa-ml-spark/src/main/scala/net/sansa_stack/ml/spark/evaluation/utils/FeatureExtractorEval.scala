@@ -4,9 +4,9 @@ import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.feature.{CountVectorizer, CountVectorizerModel}
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
@@ -16,7 +16,7 @@ import scala.util.control.Breaks._
  * This class creates from a dataset of triples features for Similarity Models
  */
 class FeatureExtractorEval extends Transformer {
-  val spark = SparkSession.builder.getOrCreate()
+  val spark: SparkSession = SparkSession.builder.getOrCreate()
   private val _availableModes = Array("par", "par2", "ic", "root", "feat", "path", "apsp")
   private var _mode: String = "par"
   private var _depth: Int = 1
@@ -121,7 +121,7 @@ class FeatureExtractorEval extends Transformer {
     print("marked b: ")
     println(marked_b)
      */
-    (res, (marked_b(marked_b.indexWhere(t => {t._1 == res}))._2 + marked_a(marked_a.indexWhere(t => {t._1 == res}))._2))
+    (res, marked_b(marked_b.indexWhere(t => {t._1 == res}))._2 + marked_a(marked_a.indexWhere(t => {t._1 == res}))._2)
   })
 
   /**
@@ -135,7 +135,7 @@ class FeatureExtractorEval extends Transformer {
       this
     }
     else {
-      throw new Exception("The specified mode: " + mode + "is not supported. Currently available are: " + _availableModes)
+      throw new Exception("The specified mode: " + mode + "is not supported. Currently available are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
   }
 
@@ -193,7 +193,7 @@ class FeatureExtractorEval extends Transformer {
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
-          "Currently available modes are: " + _availableModes)
+          "Currently available modes are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
     val returnDF: DataFrame = _mode match {
       case "par" =>
@@ -303,7 +303,7 @@ class FeatureExtractorEval extends Transformer {
       case _ => throw new Exception(
         "This mode is currently not supported .\n " +
           "You selected mode " + _mode + " .\n " +
-          "Currently available modes are: " + _availableModes)
+          "Currently available modes are: " + _availableModes.mkString("Array(", ", ", ")"))
     }
     returnDF
   }

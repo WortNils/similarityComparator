@@ -3,19 +3,18 @@ package net.sansa_stack.ml.spark.evaluation.models
 import net.sansa_stack.ml.spark.evaluation.utils.FeatureExtractorEval
 import org.apache.spark.ml.Transformer
 import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import scala.collection.mutable.WrappedArray.ofRef
-
 import scala.collection.Map
+import scala.collection.mutable.WrappedArray.ofRef
 
 /**
  * This class takes a base dataset and a target DataFrame and returns the Resnik similarity value
  * and the time it took to arrive at that value in a DataFrame
  */
 class ResnikModel extends Transformer with SimilarityModel {
-  override val spark = SparkSession.builder.getOrCreate()
+  override val spark: SparkSession = SparkSession.builder.getOrCreate()
   import spark.implicits._
   private val _availableModes = Array("res")
   private var _mode: String = "res"
@@ -54,7 +53,7 @@ class ResnikModel extends Transformer with SimilarityModel {
     if (a.isEmpty || b.isEmpty) {
       // Timekeeping
       val t_diff = t_net/1000
-      return (0.0, t_diff)
+      (0.0, t_diff)
     }
     else {
       // Timekeeping
@@ -76,7 +75,7 @@ class ResnikModel extends Transformer with SimilarityModel {
       val t_diff = (t_net + t3 - t2)/1000
 
       // return value
-      return (maxIC, t_diff)
+      (maxIC, t_diff)
     }
   }
 

@@ -4,7 +4,7 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 trait SimilarityModel {
   // generic variables
-  val spark = SparkSession.builder.getOrCreate()
+  val spark: SparkSession = SparkSession.builder.getOrCreate()
   import spark.implicits._
 
   // input dataframes
