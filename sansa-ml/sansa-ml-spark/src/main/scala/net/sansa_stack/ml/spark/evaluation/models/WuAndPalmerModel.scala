@@ -234,19 +234,183 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
    * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
    */
   def transform (dataset: Dataset[_]): DataFrame = {
-    if (_mode == "join") {
+    if (_features.isEmpty) {
+      if (_mode == "join") {
+        // timekeeping
+        val t0 = System.currentTimeMillis()
+
+        // parent calculation
+        val featureExtractorModel = new FeatureExtractorEval()
+          .setMode("par2").setDepth(_depth).setTarget(_target.drop("entityA")
+          .withColumnRenamed("entityB", "uri")
+          .union(_target.drop("entityB")
+            .withColumnRenamed("entityA", "uri"))
+          .distinct())
+        _parents = featureExtractorModel
+          .transform(dataset)
+
+        val bparents: DataFrame = _parents
+          .withColumn("parent2", toTuple(col("parent"), col("depth")))
+          .drop("parent", "depth")
+          .groupBy("entity")
+          .agg(collect_list("parent2"))
+          .withColumnRenamed("collect_list(parent2)", "parents")
+        // bparents.show(false)
+        // bparents.printSchema()
+
+        // _target.show(false)
+        val target: DataFrame = _target.join(bparents, _target("entityA") === bparents("entity"))
+          .drop("entity")
+          .withColumnRenamed("parents", "featuresA")
+          .join(bparents, _target("entityB") === bparents("entity"))
+          .drop("entity")
+          .withColumnRenamed("parents", "featuresB")
+        // target.show(false)
+        // target.printSchema()
+
+        /*
+        val rooter = _parents.filter(_parents("parent2._1") === _root)
+          .withColumn("rootdist", fromTuple(col("parent2")))
+          .drop("parent2")
+         */
+        val rents = _parents.drop("entity", "depth").distinct().withColumnRenamed("parent", "uri")
+        val rooter = featureExtractorModel.setMode("par2").setDepth(_depth).setTarget(rents).transform(dataset)
+        val roots = rooter.groupBy("entity")
+          .agg(max(rooter("depth")))
+          .withColumnRenamed("max(depth)", "rootdist")
+
+        // rooter.show(false)
+
+        _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+        // println(_rootdist)
+        _max = dataset.count()
+        // target.where($"featuresB".isNull).show(false)
+        /* val valueM1 = _parents.filter(_parents("entity") === "urn:m1")
+        valueM1.show(false) */
+
+
+        // timekeeping
+        val t1 = System.currentTimeMillis()
+        t_net = t1 - t0
+
+        val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
+          .drop("featuresA", "featuresB")
+        val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+          .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
+          .drop("WuAndPalmerTemp")
+
+        val t4 = System.currentTimeMillis()
+        val t_ = (t4-t0)/1000
+
+        temp.withColumn("WuAndPalmerFullTime", lit(t_))
+      }
+      else if (_mode == "path") {
+        // timekeeping
+        val t0 = System.currentTimeMillis()
+
+        // find all nodes
+        val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
+        val data = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
+          .withColumnRenamed("value", "uri")
+
+        // parent calculation
+        val featureExtractorModel = new FeatureExtractorEval()
+          .setMode("apsp")
+          .setDepth(_depth)
+          .setTarget(data)
+
+        val apsp = featureExtractorModel.transform(dataset)
+
+        // join for entityA and entityB
+        val target: DataFrame = _target.join(apsp, _target("entityA") === apsp("uri"))
+          .drop("uri")
+          .withColumnRenamed("parents", "featuresA")
+          .join(apsp, _target("entityB") === apsp("uri"))
+          .drop("uri")
+          .withColumnRenamed("parents", "featuresB")
+
+        // find longest paths for every entity
+        val roots = apsp
+          .groupBy("entity")
+          .agg(max(apsp("depth")))
+          .withColumnRenamed("max(depth)", "rootdist")
+
+        _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+        _max = dataset.count()
+
+        // timekeeping
+        val t1 = System.currentTimeMillis()
+        t_net = t1 - t0
+
+        val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
+          .drop("featuresA", "featuresB")
+        val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+          .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
+          .drop("WuAndPalmerTemp")
+
+        val t4 = System.currentTimeMillis()
+        val t_ = (t4-t0)/1000
+
+        target.count()
+
+        temp.withColumn("WuAndPalmerFullTime", lit(t_))
+      }
+      else if (_mode == "breadth") {
+        // timekeeping
+        val t0 = System.currentTimeMillis()
+
+        val featureExtractorModel = new FeatureExtractorEval()
+          .setMode("path").setDepth(_depth).setTarget(_target)
+        _parents = featureExtractorModel
+          .transform(dataset)
+
+        val target = _parents.withColumn("dist", fromTuple(col("pathdist")))
+          .withColumn("parent", fromTuple_1(col("pathdist")))
+
+        val renter = _parents.withColumn("uri", fromTuple_1(col("pathdist")))
+          .drop("entityA", "entityB", "pathdist")
+          .distinct()
+
+        val rents = renter.where(renter("uri") =!= "")
+
+        val rooter = featureExtractorModel.setMode("root").setDepth(_depth).setTarget(rents).transform(dataset)
+
+        val roots = rooter.groupBy("entity")
+          .agg(max(rooter("depth")))
+          .withColumnRenamed("max(depth)", "rootdist")
+
+        _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
+        _max = dataset.count()
+
+        // timekeeping
+        val t1 = System.currentTimeMillis()
+        t_net = t1 - t0
+
+        val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
+          .drop("pathdist", "dist", "parent")
+        val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
+          .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
+          .drop("WuAndPalmerTemp")
+
+        val t4 = System.currentTimeMillis()
+        val t_ = (t4-t0)/1000
+
+        target.count()
+
+        temp.withColumn("WuAndPalmerFullTime", lit(t_))
+      }
+      else {
+        _target.withColumn("WuAndPalmer", lit(0))
+          .withColumn("WuAndPalmerTime", lit(0))
+          .withColumn("WuAndPalmerFullTime", lit(0))
+      }
+    }
+    else {
       // timekeeping
       val t0 = System.currentTimeMillis()
 
       // parent calculation
-      val featureExtractorModel = new FeatureExtractorEval()
-        .setMode("par2").setDepth(_depth).setTarget(_target.drop("entityA")
-        .withColumnRenamed("entityB", "uri")
-        .union(_target.drop("entityB")
-          .withColumnRenamed("entityA", "uri"))
-        .distinct())
-      _parents = featureExtractorModel
-        .transform(dataset)
+      _parents = _features.select("uri", "parent", "depth")
 
       val bparents: DataFrame = _parents
         .withColumn("parent2", toTuple(col("parent"), col("depth")))
@@ -272,11 +436,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
         .withColumn("rootdist", fromTuple(col("parent2")))
         .drop("parent2")
        */
-      val rents = _parents.drop("entity", "depth").distinct().withColumnRenamed("parent", "uri")
-      val rooter = featureExtractorModel.setMode("par2").setDepth(_depth).setTarget(rents).transform(dataset)
-      val roots = rooter.groupBy("entity")
-        .agg(max(rooter("depth")))
-        .withColumnRenamed("max(depth)", "rootdist")
+      val roots = _features.select("parent", "rootdist").distinct()
 
       // rooter.show(false)
 
@@ -302,106 +462,6 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
       val t_ = (t4-t0)/1000
 
       temp.withColumn("WuAndPalmerFullTime", lit(t_))
-    }
-    else if (_mode == "path") {
-      // timekeeping
-      val t0 = System.currentTimeMillis()
-
-      // find all nodes
-      val ds: Dataset[(String, String, String)] = dataset.toDF().as[(String, String, String)]
-      val data = ds.flatMap(t => Seq((t._1), (t._3))).distinct().toDF()
-        .withColumnRenamed("value", "uri")
-
-      // parent calculation
-      val featureExtractorModel = new FeatureExtractorEval()
-        .setMode("apsp")
-        .setDepth(_depth)
-        .setTarget(data)
-
-      val apsp = featureExtractorModel.transform(dataset)
-
-      // join for entityA and entityB
-      val target: DataFrame = _target.join(apsp, _target("entityA") === apsp("uri"))
-        .drop("uri")
-        .withColumnRenamed("parents", "featuresA")
-        .join(apsp, _target("entityB") === apsp("uri"))
-        .drop("uri")
-        .withColumnRenamed("parents", "featuresB")
-
-      // find longest paths for every entity
-      val roots = apsp
-        .groupBy("entity")
-        .agg(max(apsp("depth")))
-        .withColumnRenamed("max(depth)", "rootdist")
-
-      _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
-      _max = dataset.count()
-
-      // timekeeping
-      val t1 = System.currentTimeMillis()
-      t_net = t1 - t0
-
-      val result = target.withColumn("WuAndPalmerTemp", wuandpalmer(col("featuresA"), col("featuresB")))
-        .drop("featuresA", "featuresB")
-      val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
-        .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
-        .drop("WuAndPalmerTemp")
-
-      val t4 = System.currentTimeMillis()
-      val t_ = (t4-t0)/1000
-
-      target.count()
-
-      temp.withColumn("WuAndPalmerFullTime", lit(t_))
-    }
-    else if (_mode == "breadth") {
-      // timekeeping
-      val t0 = System.currentTimeMillis()
-
-      val featureExtractorModel = new FeatureExtractorEval()
-        .setMode("path").setDepth(_depth).setTarget(_target)
-      _parents = featureExtractorModel
-        .transform(dataset)
-
-      val target = _parents.withColumn("dist", fromTuple(col("pathdist")))
-        .withColumn("parent", fromTuple_1(col("pathdist")))
-
-      val renter = _parents.withColumn("uri", fromTuple_1(col("pathdist")))
-        .drop("entityA", "entityB", "pathdist")
-        .distinct()
-
-      val rents = renter.where(renter("uri") =!= "")
-
-      val rooter = featureExtractorModel.setMode("root").setDepth(_depth).setTarget(rents).transform(dataset)
-
-      val roots = rooter.groupBy("entity")
-        .agg(max(rooter("depth")))
-        .withColumnRenamed("max(depth)", "rootdist")
-
-      _rootdist = roots.rdd.map(x => (x.getString(0), x.getInt(1))).collectAsMap()
-      _max = dataset.count()
-
-      // timekeeping
-      val t1 = System.currentTimeMillis()
-      t_net = t1 - t0
-
-      val result = target.withColumn("WuAndPalmerTemp", wuandpalmerbreadth(col("dist"), col("parent")))
-         .drop("pathdist", "dist", "parent")
-      val temp = result.withColumn("WuAndPalmer", result("WuAndPalmerTemp._1"))
-        .withColumn("WuAndPalmerTime", result("WuAndPalmerTemp._2"))
-        .drop("WuAndPalmerTemp")
-
-      val t4 = System.currentTimeMillis()
-      val t_ = (t4-t0)/1000
-
-      target.count()
-
-      temp.withColumn("WuAndPalmerFullTime", lit(t_))
-    }
-    else {
-      _target.withColumn("WuAndPalmer", lit(0))
-        .withColumn("WuAndPalmerTime", lit(0))
-        .withColumn("WuAndPalmerFullTime", lit(0))
     }
   }
 
