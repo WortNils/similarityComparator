@@ -410,7 +410,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
       val t0 = System.currentTimeMillis()
 
       // parent calculation
-      _parents = _features.select("uri", "parent", "depth")
+      _parents = _features.select(_inputCols(0), _inputCols(1), _inputCols(2))
 
       val bparents: DataFrame = _parents
         .withColumn("parent2", toTuple(col("parent"), col("depth")))
@@ -436,7 +436,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
         .withColumn("rootdist", fromTuple(col("parent2")))
         .drop("parent2")
        */
-      val roots = _features.select("parent", "rootdist").distinct()
+      val roots = _features.select(_inputCols(1), _inputCols(3)).distinct()
 
       // rooter.show(false)
 
