@@ -22,7 +22,7 @@ class TverskyModel extends Transformer with SimilarityModel {
   private var _mode: String = "tver"
   private var _depth: Int = 1
 
-  private var _inputCols: Array[String] = Array("entity", "vectorizedFeatures")
+  private var _inputCols: Array[String] = Array("uri", "vectorizedFeatures")
   private var _outputCol: String = "extractedFeatures"
 
   private var t_net: Double = 0.0
@@ -161,39 +161,66 @@ class TverskyModel extends Transformer with SimilarityModel {
    * @return a dataframe with four columns, two for the entities, one for the similarity value and one for the time
    */
   def transform (dataset: Dataset[_]): DataFrame = {
-    // timekeeping
-    val t0 = System.currentTimeMillis()
+    if (_features.isEmpty()) {
+      // timekeeping
+      val t0 = System.currentTimeMillis()
 
-    // feature calculation
-    val tempDf = _target.drop("entityA")
-      .withColumnRenamed("entityB", "uri")
-      .union(_target.drop("entityB")
-        .withColumnRenamed("entityA", "uri"))
-      .distinct()
-    val featureExtractorModel = new FeatureExtractorEval()
-      .setMode("feat").setDepth(_depth)
-      .setTarget(tempDf)
-    val features = featureExtractorModel
-      .transform(dataset)
+      // feature calculation
+      val tempDf = _target.drop("entityA")
+        .withColumnRenamed("entityB", "uri")
+        .union(_target.drop("entityB")
+          .withColumnRenamed("entityA", "uri"))
+        .distinct()
+      val featureExtractorModel = new FeatureExtractorEval()
+        .setMode("feat").setDepth(_depth)
+        .setTarget(tempDf)
+      val features = featureExtractorModel
+        .transform(dataset)
 
-    val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
-      .withColumnRenamed("vectorizedFeatures", "featuresA")
-      .join(features, _target("entityB") === features("uri")).drop("uri")
-      .withColumnRenamed("vectorizedFeatures", "featuresB")
+      val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
+        .withColumnRenamed("vectorizedFeatures", "featuresA")
+        .join(features, _target("entityB") === features("uri")).drop("uri")
+        .withColumnRenamed("vectorizedFeatures", "featuresB")
 
-    // TODO: insert Feature compatibility
+      // TODO: insert Feature compatibility
 
-    // timekeeping
-    val t1 = System.currentTimeMillis()
-    t_net = t1 - t0
+      // timekeeping
+      val t1 = System.currentTimeMillis()
+      t_net = t1 - t0
 
-    target.count()
+      target.count()
 
-    val result = target.withColumn("TverskyTemp", tversky(col("featuresA"), col("featuresB"), lit(_alpha), lit(_beta)))
-      .drop("featuresA", "featuresB")
-    result.withColumn("Tversky", result("TverskyTemp._1"))
-      .withColumn("TverskyTime", result("TverskyTemp._2"))
-      .drop("TverskyTemp")
+      val result = target.withColumn("TverskyTemp", tversky(col("featuresA"), col("featuresB"), lit(_alpha), lit(_beta)))
+        .drop("featuresA", "featuresB")
+      result.withColumn("Tversky", result("TverskyTemp._1"))
+        .withColumn("TverskyTime", result("TverskyTemp._2"))
+        .drop("TverskyTemp")
+    }
+    else {
+      // timekeeping
+      val t0 = System.currentTimeMillis()
+
+      val features = _features.select(_inputCols(0), _inputCols(1))
+
+      val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
+        .withColumnRenamed("vectorizedFeatures", "featuresA")
+        .join(features, _target("entityB") === features("uri")).drop("uri")
+        .withColumnRenamed("vectorizedFeatures", "featuresB")
+
+      // TODO: insert Feature compatibility
+
+      // timekeeping
+      val t1 = System.currentTimeMillis()
+      t_net = t1 - t0
+
+      target.count()
+
+      val result = target.withColumn("TverskyTemp", tversky(col("featuresA"), col("featuresB"), lit(_alpha), lit(_beta)))
+        .drop("featuresA", "featuresB")
+      result.withColumn("Tversky", result("TverskyTemp._1"))
+        .withColumn("TverskyTime", result("TverskyTemp._2"))
+        .drop("TverskyTemp")
+    }
   }
 
   override def copy(extra: ParamMap): Transformer = defaultCopy(extra)
