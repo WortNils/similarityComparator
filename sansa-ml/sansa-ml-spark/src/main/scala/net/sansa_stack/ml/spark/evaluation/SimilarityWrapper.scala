@@ -23,7 +23,6 @@ class SimilarityWrapper extends Transformer {
   private var _wpMode: String = "join"
   private var _tverAlpha: Double = 1.0
   private var _tverBeta: Double = 1.0
-  private var _target: DataFrame = spark.emptyDataFrame
 
   // sampling variables
   private val _availableSamplingModes = Array("rand", "cross", "crossFull", "crossOld", "limit", "sparql")
@@ -73,7 +72,7 @@ class SimilarityWrapper extends Transformer {
   }
 
   /**
-   * This method changes the amount of rows to take in limit sampling mode
+   * This method changes the amount of rows to take in limit and rand sampling mode
    * @param samplingLimit an Int specifying the amount of rows to take
    * @return returns Wrapper
    */

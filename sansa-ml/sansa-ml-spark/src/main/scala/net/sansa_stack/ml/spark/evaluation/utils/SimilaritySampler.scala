@@ -55,7 +55,7 @@ class SimilaritySampler extends Transformer {
   }
 
   /**
-   * This method changes the amount of rows to take in limit mode
+   * This method changes the amount of rows to take in limit and rand mode
    * @param limit an Int specifiyng the amount of rows to take
    * @return returns the SimilaritySampler
    */
@@ -124,7 +124,8 @@ class SimilaritySampler extends Transformer {
             .withColumnRenamed("idA", "idB"))
         tempDf.where(tempDf("idA") >= tempDf("idB")).drop("idA", "idB")
       case "rand" =>
-        val rawt = raw.sample(withReplacement = true, fraction = 0.002, seed = _seed)
+        val count = raw.count()
+        val rawt = raw.sample(withReplacement = true, fraction = count/_limit, seed = _seed)
         val tempDf = rawt.crossJoin(rawt.withColumnRenamed("entityA", "entityB"))
         tempDf.where(tempDf("entityA") >= tempDf("entityB"))
       case "limit" =>
