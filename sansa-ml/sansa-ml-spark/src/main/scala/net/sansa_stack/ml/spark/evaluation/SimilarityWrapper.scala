@@ -322,7 +322,7 @@ class SimilarityWrapper extends Transformer {
     var informationContent = parents
 
     if (res) {
-      featureExtractorModel.setTarget(parents.select("parent").distinct()).setMode("info")
+      featureExtractorModel.setTarget(parents.select("parent").distinct().withColumnRenamed("parent", "uri")).setMode("ic")
       informationContent = featureExtractorModel.transform(dataset)
     }
 
@@ -330,7 +330,7 @@ class SimilarityWrapper extends Transformer {
     var rootDist = parents
 
     if (wp) {
-      featureExtractorModel.setTarget(parents.select("parent").distinct()).setMode("par2")
+      featureExtractorModel.setTarget(parents.select("parent").distinct().withColumnRenamed("parent", "uri")).setMode("par2")
       val rooter = featureExtractorModel.transform(dataset)
       rootDist = rooter.groupBy("entity")
         .agg(max(rooter("depth")))
@@ -342,7 +342,7 @@ class SimilarityWrapper extends Transformer {
       .join(parents, realTarget("uri") === parents("entity")).drop("entity")
       .join(vectors, realTarget("uri") === vectors("entity")).drop("entity")
       .join(informationContent, realTarget("uri") === informationContent("entity")).drop("entity")
-      .join(rootDist, realTarget("uri") === rootDist("entity")).drop("entity")
+      .join(rootDist, realTarget("uri") === rootDist("entity")).drop("uri")
 
 
     // use models

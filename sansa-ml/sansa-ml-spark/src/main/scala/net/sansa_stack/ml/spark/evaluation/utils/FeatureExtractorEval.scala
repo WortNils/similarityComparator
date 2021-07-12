@@ -7,7 +7,6 @@ import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks._
 
@@ -291,7 +290,11 @@ class FeatureExtractorEval extends Transformer {
         val tmpCvDf: DataFrame = cvModel.transform(filteredFeaturesDataFrame)
         // val isNoneZeroVector = udf({ v: Vector => v.numNonzeros > 0 }, DataTypes.BooleanType)
         val isNoneZeroVector = udf({ v: Vector => v.numNonzeros > 0 })
-        val countVectorizedFeaturesDataFrame: DataFrame = tmpCvDf.filter(isNoneZeroVector(col("vectorizedFeatures"))).select("uri", "vectorizedFeatures").cache()
+        val countVectorizedFeaturesDataFrame: DataFrame = tmpCvDf
+          .filter(isNoneZeroVector(col("vectorizedFeatures")))
+          .select("uri", "vectorizedFeatures")
+          .withColumnRenamed("uri", "entity")
+          .cache()
         countVectorizedFeaturesDataFrame
       case "path" =>
         val target = _target

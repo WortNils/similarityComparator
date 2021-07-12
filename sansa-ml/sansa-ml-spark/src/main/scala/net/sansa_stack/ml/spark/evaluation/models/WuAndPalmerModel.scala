@@ -21,7 +21,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
   private var _mode: String = "join"
   private var _depth: Int = 1
 
-  private var _inputCols: Array[String] = Array("uri", "parent", "depth", "rootDist")
+  private var _inputCols: Array[String] = Array("entity", "parent", "depth", "rootDist")
   private var _outputCol: String = "extractedFeatures"
 
   private var _rootdist: Map[String, Int] = Map("ab" -> 2)
