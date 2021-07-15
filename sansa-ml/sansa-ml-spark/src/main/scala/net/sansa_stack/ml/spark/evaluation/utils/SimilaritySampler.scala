@@ -124,8 +124,8 @@ class SimilaritySampler extends Transformer {
             .withColumnRenamed("idA", "idB"))
         tempDf.where(tempDf("idA") >= tempDf("idB")).drop("idA", "idB")
       case "rand" =>
-        val count = raw.count()
-        val rawt = raw.sample(withReplacement = true, fraction = _limit/count, seed = _seed)
+        val count: Double = raw.count().toDouble
+        val rawt = raw.sample(fraction = _limit.toDouble/count, seed = _seed)
         val tempDf = rawt.crossJoin(rawt.withColumnRenamed("entityA", "entityB"))
         tempDf.where(tempDf("entityA") >= tempDf("entityB"))
       case "limit" =>
