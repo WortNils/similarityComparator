@@ -137,6 +137,7 @@ class SimilaritySampler extends Transformer {
         val sparqlFrame = new SparqlFrame()
           .setSparqlQuery(_queryString)
         val res = sparqlFrame.transform(dataset)
+        // TODO: add crossJoin and upper triangle reduction
         res
     }
 
