@@ -97,9 +97,9 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
     val triplesDf = spark.rdf(Lang.TTL)(inputPath).toDF().cache()
 
-    val sample = new SimilaritySampler()
+    val sampler = new SimilaritySampler()
       .setMode("cross")
-    val target = sample.transform(triplesDf)
+    val target = sampler.transform(triplesDf)
 
     val featureTarget = target.drop("entityA")
       .withColumnRenamed("entityB", "uri")
@@ -133,14 +133,30 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       val result = extractedFeaturesDataFrame
 
       if (mode == "par") {
-        val valueM1 = result.filter(result("entityA") === "urn:m1" || result("entityB") === "urn:m1").collectAsList()
-        println(valueM1)
+        val valueM1 = result.filter(result("entity") === "urn:m1").select("parent")
+          .rdd.map(r => r.getAs[String]("parent")).collect().toList.sorted
+        val actualValM1 = List("urn:a1", "urn:a2")
+
+        assert(valueM1 === actualValM1)
+
+        val valueP1 = result.filter(result("entity") === "urn:p1").select("parent")
+          .rdd.map(r => r.getAs[String]("parent")).collect().toList.sorted
+        val actualValP1 = List("urn:a1", "urn:a2", "urn:m1")
+        assert(valueP1 === actualValP1)
       }
       if (mode == "par2") {
 
       }
       if (mode == "ic") {
+        val valueM1 = result.filter(result("entity") === "urn:m1").select("informationContent")
+          .rdd.map(r => r.getAs[Double]("informationContent")).take(1)(0)
+        val actualValM1 = 0.333333333
+        assert(valueM1 === actualValM1)
 
+        val valueP1 = result.filter(result("entity") === "urn:p1").select("informationContent")
+          .rdd.map(r => r.getAs[Double]("informationContent")).take(1)(0)
+        val actualValP1 = 1.toDouble/12.toDouble
+        assert(valueP1 === actualValP1)
       }
       if (mode == "root") {
 
