@@ -435,7 +435,7 @@ class WuAndPalmerModel extends Transformer with SimilarityModel{
         .withColumn("rootdist", fromTuple(col("parent2")))
         .drop("parent2")
        */
-      val roots = _features.select(_inputCols(1), _inputCols(3)).distinct()
+      val roots = _features.select(_inputCols(1), _inputCols(3)).where(_features(_inputCols(3)) =!= null).distinct()
 
       // rooter.show(false)
 
