@@ -85,27 +85,6 @@ class TverskyModel extends Transformer with SimilarityModel {
     }
   }
 
-/*
-  /**
-   * This function takes a list of features for two entities a and b and returns their Tversky similarity value
-   * and the time it took to calculate that value
-   * @param a List of parents for entity a
-   * @param b List of parents for entity b
-   * @return 2-Tuple of Tversky value and time taken
-   */
-  def tverskyMethod(a: List[String], b: List[String]): Tuple2[Double, Double] = {
-    (0.0, 0.0)
-  }
-
-  /**
-   * udf to invoke the ResnikMethod with the correct parameters
-   */
-  protected val tversky = udf((a: ofRef[String], b: ofRef[String]) => {
-    /* a.keySet.intersect(b.keySet).map(k => k->(a(k),b(k))). */
-    tverskyMethod(a.toList, b.toList)
-  })
- */
-
   /**
    * This method sets the iteration depth for the parent feature extraction
    * @param depth Integer value indicating how deep parents are searched for
@@ -173,12 +152,10 @@ class TverskyModel extends Transformer with SimilarityModel {
       val features = featureExtractorModel
         .transform(dataset)
 
-      val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
+      val target = _target.join(features, _target("entityA") === features("entity")).drop("entity")
         .withColumnRenamed("vectorizedFeatures", "featuresA")
-        .join(features, _target("entityB") === features("uri")).drop("uri")
+        .join(features, _target("entityB") === features("entity")).drop("entity")
         .withColumnRenamed("vectorizedFeatures", "featuresB")
-
-      // TODO: insert Feature compatibility
 
       // timekeeping
       val t1 = System.currentTimeMillis()
@@ -198,12 +175,10 @@ class TverskyModel extends Transformer with SimilarityModel {
 
       val features = _features.select(_inputCols(0), _inputCols(1))
 
-      val target = _target.join(features, _target("entityA") === features("uri")).drop("uri")
+      val target = _target.join(features, _target("entityA") === features(_inputCols(0))).drop(_inputCols(0))
         .withColumnRenamed("vectorizedFeatures", "featuresA")
-        .join(features, _target("entityB") === features("uri")).drop("uri")
+        .join(features, _target("entityB") === features(_inputCols(0))).drop(_inputCols(0))
         .withColumnRenamed("vectorizedFeatures", "featuresB")
-
-      // TODO: insert Feature compatibility
 
       // timekeeping
       val t1 = System.currentTimeMillis()
