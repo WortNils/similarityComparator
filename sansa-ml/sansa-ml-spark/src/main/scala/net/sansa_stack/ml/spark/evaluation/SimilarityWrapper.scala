@@ -338,11 +338,14 @@ class SimilarityWrapper extends Transformer {
     }
 
     // join feature DataFrames
-    val features = realTarget
+    val temper = realTarget
       .join(parents, realTarget("uri") === parents("entity")).drop("entity")
       .join(vectors, realTarget("uri") === vectors("entity")).drop("entity")
-      .join(informationContent, realTarget("uri") === informationContent("entity")).drop("entity")
-      .join(rootDist, realTarget("uri") === rootDist("entity")).drop("uri")
+    val features = temper
+      .join(informationContent, temper("parent") === informationContent("entity"), "left").drop("entity")
+      .join(rootDist, temper("parent") === rootDist("entity"), "left").drop("entity")
+
+    features.show()
 
 
     // use models
@@ -351,7 +354,8 @@ class SimilarityWrapper extends Transformer {
       val resnik = new ResnikModel()
       val temp = resnik.setTarget(target)
         .setDepth(_iterationDepth)
-        .setFeatures(features, "entity", "parent", "informationContent")
+        .setFeatures(features.select("uri", "parent", "informationContent").distinct(),
+          "uri", "parent", "informationContent")
         .transform(dataset)
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
@@ -362,7 +366,8 @@ class SimilarityWrapper extends Transformer {
       val wupalm = new WuAndPalmerModel()
       val temp = wupalm.setTarget(target)
         .setDepth(_iterationDepth)
-        .setFeatures(features, "entity", "parent", "depth", "rootDist")
+        .setFeatures(features.select("uri", "parent", "depth", "rootDist").distinct(),
+          "uri", "parent", "depth", "rootDist")
         .transform(dataset)
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")
@@ -373,7 +378,8 @@ class SimilarityWrapper extends Transformer {
       val tversky = new TverskyModel()
       val temp = tversky.setTarget(target)
         .setDepth(_iterationDepth)
-        .setFeatures(features, "entity", "vectorizedFeatures")
+        .setFeatures(features.select("uri", "vectorizedFeatures").distinct(),
+          "uri", "vectorizedFeatures")
         .transform(dataset)
         .withColumnRenamed("entityA", "entityA_old")
         .withColumnRenamed("entityB", "entityB_old")

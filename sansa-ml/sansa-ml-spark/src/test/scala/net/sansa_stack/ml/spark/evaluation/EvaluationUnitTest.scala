@@ -274,6 +274,8 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
       .setMode("cross")
     val target = sample.transform(triplesDf)
 
+    target.show()
+
     val result = new TverskyModel()
       .setTarget(target)
       .setAlpha(1.0)
@@ -303,6 +305,7 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
 
     val result = new SimilarityWrapper()
       .setModels(resnik = true, wuandpalmer = true, tversky = true)
+      .setSamplingMode("cross")
       .transform(triplesDf)
 
     result.show(false)
@@ -322,9 +325,9 @@ class EvaluationUnitTest extends FunSuite with DataFrameSuiteBase {
     val resValM1M2 = 0.166666666666666
     assert(resM1M2 === resValM1M2)
 
-    val wpValP1P2 = 0.25
+    val wpValP1P2 = 0.0
     assert(wpP1P2 === wpValP1P2)
-    val wpValM1M2 = 0.5
+    val wpValM1M2 = 0.0
     assert(wpM1M2 === wpValM1M2)
 
     val tverValP1P2 = 0.0
